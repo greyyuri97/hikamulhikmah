@@ -1,0 +1,55 @@
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { LogOut, Database } from "lucide-react";
+import type { DarsVideo, Note, Podcast } from "@/lib/types";
+import { NOTE_SECTIONS } from "@/lib/sections";
+import { setupTabs } from "@/lib/actions";
+import NotesAdmin from "./NotesAdmin";
+import DarsGenerator from "./DarsGenerator";
+import PodcastAdmin from "./PodcastAdmin";
+
+type Data = { bukhari: Note[]; muslim: Note[]; fawaid: Note[]; videos: DarsVideo[]; podcasts: Podcast[] };
+const TABS = [
+  { k: "bukhari", label: "Bukhari" },
+  { k: "muslim", label: "Muslim" },
+  { k: "fawaid", label: "Fawaid" },
+  { k: "dars", label: "Dars Syeikhuna" },
+  { k: "podcast", label: "Podcast" },
+] as const;
+
+export default function AdminDashboard({ data, configured }: { data: Data; configured: boolean }) {
+  const [tab, setTab] = useState<(typeof TABS)[number]["k"]>("bukhari");
+  const [msg, setMsg] = useState("");
+  const router = useRouter();
+
+  return (
+    <div>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <h1 className="font-serif text-2xl font-semibold">Pusat Kawalan Admin</h1>
+        <div className="flex gap-2">
+          <button className="btn-ghost border border-line" onClick={async () => { const r = await setupTabs(); setMsg(r.ok ? `Tab disediakan: ${r.id}` : r.error); router.refresh(); }}>
+            <Database size={14} /> Sediakan Tab Sheets
+          </button>
+          <button className="btn-ghost border border-line" onClick={async () => { await fetch("/api/admin/logout", { method: "POST" }); router.refresh(); }}>
+            <LogOut size={14} /> Keluar
+          </button>
+        </div>
+      </div>
+      {!configured && <p className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">Google Sheets belum dikonfigurasi. Isi <code>.env.local</code> (lihat README).</p>}
+      {msg && <p className="mb-4 rounded-lg bg-accent/10 p-3 text-sm text-accent">{msg}</p>}
+
+      <div className="mb-5 flex gap-1 overflow-x-auto rounded-xl border border-line bg-surface p-1">
+        {TABS.map((t) => (
+          <button key={t.k} onClick={() => setTab(t.k)} className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm ${tab === t.k ? "bg-accent font-semibold text-white" : "text-muted hover:text-ink"}`}>{t.label}</button>
+        ))}
+      </div>
+
+      {(tab === "bukhari" || tab === "muslim" || tab === "fawaid") && (
+        <NotesAdmin key={tab} sectionKey={tab} title={NOTE_SECTIONS[tab].title} notes={data[tab]} />
+      )}
+      {tab === "dars" && <DarsGenerator videos={data.videos} />}
+      {tab === "podcast" && <PodcastAdmin podcasts={data.podcasts} />}
+    </div>
+  );
+}

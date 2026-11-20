@@ -1,0 +1,15 @@
+{
+  "name": "حِكَمُ الحِكْمَةِ | Intisari Kebijaksanaan",
+  "short_name": "Intisari Hikmah",
+  "description": "Portal Ilmu & Talaqqi",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F5F4F0",
+  "theme_color": "#A84A0A",
+  "lang": "ms",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
