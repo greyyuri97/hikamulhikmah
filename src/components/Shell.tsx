@@ -8,6 +8,7 @@ import Logo from "./Logo";
 import { NAV } from "./nav";
 import { useApp, type Theme } from "./Providers";
 import BookmarksDrawer from "./BookmarksDrawer";
+import AdminAccess from "./AdminAccess";
 
 const THEMES: { t: Theme; icon: typeof Sun; label: string }[] = [
   { t: "light", icon: Sun, label: "Cerah" },
@@ -120,6 +121,13 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         className="pb-safe mx-auto min-h-[70vh] max-w-6xl px-4 pt-6"
       >
         {children}
+        {!isAdmin && (
+          <footer className="no-print mt-16 space-y-2 border-t border-line pt-6 text-center text-xs text-muted">
+            <p><span dir="rtl" className="font-arabic text-sm">حِكَمُ الحِكْمَةِ</span> · Intisari Kebijaksanaan</p>
+            <p className="opacity-70">© {new Date().getFullYear()} · Portal Ilmu &amp; Talaqqi</p>
+            <AdminAccess />
+          </footer>
+        )}
       </motion.main>
 
       <nav className="no-print fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
