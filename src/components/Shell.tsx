@@ -62,7 +62,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       </AnimatePresence>
 
       <header className="no-print sticky top-0 z-40 border-b border-line bg-paper/90 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4">
+        <div aria-hidden className="geo-pattern pointer-events-none absolute inset-0" />
+        <div className="relative mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4">
           <Link href="/" className="flex h-12 items-center" aria-label="Laman Utama">
             {!splash && (
               <motion.div layoutId="brand-logo-emblem" transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}>

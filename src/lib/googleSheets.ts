@@ -29,7 +29,7 @@ type Row = Record<string, string> & { _row: string };
 
 /** Raw read: returns objects keyed by header, with _row = 1-based sheet row number. */
 async function readSheetRaw(key: SheetKey): Promise<Row[]> {
-  if (!sheetsConfigured()) return [];
+  if (!sheetsConfigured()) return process.env.DEMO_DATA === "1" ? (await import("./demoData")).DEMO[key] : [];
   const { name, headers } = SHEETS[key];
   try {
     const res = await getClient().spreadsheets.values.get({ spreadsheetId: SHEET_ID(), range: `${name}!A:Z` });

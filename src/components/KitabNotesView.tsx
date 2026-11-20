@@ -5,12 +5,28 @@ import NoteCard from "./NoteCard";
 import { dateValue, normalize } from "@/lib/utils";
 import type { Note } from "@/lib/types";
 
+const BULAN = ["Jan", "Feb", "Mac", "Apr", "Mei", "Jun", "Jul", "Ogo", "Sep", "Okt", "Nov", "Dis"];
+const monthKey = (d: Date) => `${BULAN[d.getMonth()]} ${d.getFullYear()}`;
+
 export default function KitabNotesView({
   notes, sectionKey, title, arabic, blurb, href, admin,
 }: { notes: Note[]; sectionKey: string; title: string; arabic: string; blurb: string; href: string; admin: boolean }) {
   const [q, setQ] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [month, setMonth] = useState("Semua");
+
+  const months = useMemo(() => {
+    const seen = new Map<string, number>();
+    for (const n of notes) {
+      const v = dateValue(n.date);
+      if (!v) continue;
+      const d = new Date(v);
+      const k = monthKey(d);
+      if (!seen.has(k)) seen.set(k, new Date(d.getFullYear(), d.getMonth(), 1).getTime());
+    }
+    return [...seen.entries()].sort((a, b) => b[1] - a[1]).map(([k]) => k);
+  }, [notes]);
 
   const list = useMemo(() => {
     const nq = normalize(q.trim());
@@ -21,9 +37,10 @@ export default function KitabNotesView({
       .filter((n) => {
         const d = dateValue(n.date);
         if ((from || to) && (d < f || d > t)) return false;
+        if (month !== "Semua" && (!d || monthKey(new Date(d)) !== month)) return false;
         return !nq || normalize(n.content + " " + n.date).includes(nq);
       });
-  }, [notes, q, from, to]);
+  }, [notes, q, from, to, month]);
 
   return (
     <div>
@@ -42,11 +59,18 @@ export default function KitabNotesView({
             <input type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="Dari tarikh" />
             <span className="text-muted">–</span>
             <input type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Hingga tarikh" />
-            {(q || from || to) && (
-              <button className="btn-ghost" onClick={() => { setQ(""); setFrom(""); setTo(""); }} aria-label="Kosongkan"><X size={16} /></button>
+            {(q || from || to || month !== "Semua") && (
+              <button className="btn-ghost" onClick={() => { setQ(""); setFrom(""); setTo(""); setMonth("Semua"); }} aria-label="Kosongkan"><X size={16} /></button>
             )}
           </div>
         </div>
+        {months.length > 1 && (
+          <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+            {["Semua", ...months].map((m) => (
+              <button key={m} onClick={() => setMonth(m)} className={`shrink-0 rounded-full border px-3 py-1 text-sm transition-colors ${month === m ? "border-accent bg-accent text-white" : "border-line bg-surface text-muted hover:text-ink"}`}>{m}</button>
+            ))}
+          </div>
+        )}
       </div>
       <div className="space-y-4">
         {list.map((n) => (

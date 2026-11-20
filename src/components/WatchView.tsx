@@ -7,6 +7,9 @@ import { normalize } from "@/lib/utils";
 import CopyButton from "./CopyButton";
 import BookmarkButton from "./BookmarkButton";
 import { Highlighted } from "./NoteCard";
+import { QuoteCardButton } from "./QuoteCard";
+import { saveLastViewed } from "@/lib/progress";
+import { formatTime } from "@/lib/utils";
 
 type Mode = "both" | "ar" | "ms";
 const MODES: { m: Mode; label: string }[] = [
@@ -41,6 +44,9 @@ export default function WatchView({ video, rows, startAt }: { video: DarsVideo; 
   const player = useRef<any>(null);
   const holder = useRef<HTMLDivElement>(null);
 
+  const track = useCallback((t: number) => saveLastViewed({ kind: "video", section: "Dars Syeikhuna", title: video.title_malay, snippet: video.title_arabic, href: `/dars-syeikhuna/watch/${video.video_id}${t ? `?t=${t}` : ""}`, time_display: t ? formatTime(t) : undefined }), [video]);
+  useEffect(() => { track(startAt); }, [track, startAt]);
+
   useEffect(() => {
     let alive = true;
     let timer: ReturnType<typeof setInterval>;
@@ -56,10 +62,11 @@ export default function WatchView({ video, rows, startAt }: { video: DarsVideo; 
         let idx = -1;
         for (let i = 0; i < rows.length; i++) if (rows[i].time_seconds <= t + 0.5) idx = i; else break;
         setCurrent(idx);
+        if (t > 5 && Math.floor(t) % 10 === 0) track(Math.floor(t));
       }, 800);
     });
     return () => { alive = false; clearInterval(timer); player.current?.destroy?.(); };
-  }, [video.youtube_id, startAt, rows]);
+  }, [video.youtube_id, startAt, rows, track]);
 
   useEffect(() => {
     if (!startAt) return;
@@ -136,6 +143,7 @@ export default function WatchView({ video, rows, startAt }: { video: DarsVideo; 
             const tools = (
               <div className="no-print flex justify-end">
                 <BookmarkButton compact item={{ id: `tr:${video.video_id}:${r.time_seconds}`, kind: "transcript", section: "Dars Syeikhuna", title: `${video.title_malay} [${r.time_display}]`, snippet: r.malay_translation || r.arabic_text, href: `/dars-syeikhuna/watch/${video.video_id}?t=${r.time_seconds}` }} />
+                <QuoteCardButton data={{ arabic: mode !== "ms" ? r.arabic_text : undefined, text: mode !== "ar" ? r.malay_translation : undefined, source: `${video.title_malay} — [${r.time_display}]` }} />
                 <CopyButton text={() => `*${video.title_malay}* [${r.time_display}]\n\n${[r.arabic_text, r.malay_translation].filter(Boolean).join("\n\n")}\n\nhttps://youtu.be/${video.youtube_id}?t=${r.time_seconds}`} />
               </div>
             );

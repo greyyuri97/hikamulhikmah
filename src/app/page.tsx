@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import ContinueCard from "@/components/ContinueCard";
 import GlobalSearch, { type SearchItem } from "@/components/GlobalSearch";
 import { getNotes, getPodcasts, getTranscripts, getVideos } from "@/lib/googleSheets";
 import { NOTE_SECTIONS } from "@/lib/sections";
@@ -51,7 +52,10 @@ export default async function Home() {
         <h1 className="mt-2 font-serif text-2xl font-semibold sm:text-3xl">Portal Ilmu & Talaqqi</h1>
         <p className="mx-auto mt-1 max-w-xl text-sm text-muted">Himpunan nota pengajian, dars video bertranskrip dwi-bahasa dan podcast hikmah — terbuka untuk semua.</p>
       </section>
-      <GlobalSearch items={items} />
+      <div className="space-y-3">
+        <GlobalSearch items={items} />
+        <ContinueCard />
+      </div>
 
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {NAV.slice(1).map(({ href, label, icon: I }) => (
