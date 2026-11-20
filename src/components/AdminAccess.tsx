@@ -1,9 +1,10 @@
 "use client";
 import { AnimatePresence, motion } from "framer-motion";
-import { Lock, ShieldCheck, X } from "lucide-react";
+import { Lock, Settings2, Unlock, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useExitAdmin } from "@/lib/adminClient";
 
 /** Discreet footer entry point to /admin — needed when installed as a PWA (no address bar). */
 export default function AdminAccess() {
@@ -15,6 +16,7 @@ export default function AdminAccess() {
   const input = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const pathname = usePathname();
+  const { exit, leaving } = useExitAdmin(useCallback(() => setAdmin(false), []));
 
   useEffect(() => {
     fetch("/api/admin/status", { cache: "no-store" })
@@ -55,19 +57,32 @@ export default function AdminAccess() {
   return (
     <>
       <div className="flex items-center justify-center gap-2">
-        <button
-          type="button"
-          onClick={() => (admin ? router.push("/admin") : setOpen(true))}
-          className="rounded-full p-1.5 text-muted opacity-40 transition-opacity hover:opacity-80 focus-visible:opacity-80"
-          aria-label="Akses Admin"
-          title="Admin"
-        >
-          <Lock size={13} />
-        </button>
-        {admin && (
-          <Link href="/admin" className="inline-flex items-center gap-1 rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[11px] font-semibold text-accent hover:bg-accent/20">
-            <ShieldCheck size={12} /> Admin Mode
-          </Link>
+        {admin ? (
+          <>
+            <button
+              type="button"
+              onClick={exit}
+              disabled={leaving}
+              className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-[11px] font-semibold text-accent transition-colors hover:bg-accent/20 disabled:opacity-60"
+              aria-label="Keluar Mod Admin"
+              title="Keluar ke paparan awam"
+            >
+              <Unlock size={12} /> {leaving ? "Keluar…" : "Admin Mode (Keluar)"}
+            </button>
+            <Link href="/admin" className="rounded-full p-1.5 text-muted opacity-60 hover:text-accent hover:opacity-100" aria-label="Buka Panel Admin" title="Panel Admin">
+              <Settings2 size={13} />
+            </Link>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="rounded-full p-1.5 text-muted opacity-40 transition-opacity hover:opacity-80 focus-visible:opacity-80"
+            aria-label="Akses Admin"
+            title="Admin"
+          >
+            <Lock size={13} />
+          </button>
         )}
       </div>
 

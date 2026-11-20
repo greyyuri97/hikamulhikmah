@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut, Database } from "lucide-react";
+import { useExitAdmin } from "@/lib/adminClient";
 import type { DarsVideo, Note, Podcast } from "@/lib/types";
 import { NOTE_SECTIONS } from "@/lib/sections";
 import { setupTabs } from "@/lib/actions";
@@ -22,6 +23,7 @@ export default function AdminDashboard({ data, configured }: { data: Data; confi
   const [tab, setTab] = useState<(typeof TABS)[number]["k"]>("bukhari");
   const [msg, setMsg] = useState("");
   const router = useRouter();
+  const { exit, leaving } = useExitAdmin();
 
   return (
     <div>
@@ -31,8 +33,8 @@ export default function AdminDashboard({ data, configured }: { data: Data; confi
           <button className="btn-ghost border border-line" onClick={async () => { const r = await setupTabs(); setMsg(r.ok ? `Tab disediakan: ${r.id}` : r.error); router.refresh(); }}>
             <Database size={14} /> Sediakan Tab Sheets
           </button>
-          <button className="btn-ghost border border-line" onClick={async () => { await fetch("/api/admin/logout", { method: "POST" }); router.refresh(); }}>
-            <LogOut size={14} /> Keluar
+          <button className="btn-accent" onClick={exit} disabled={leaving} title="Lihat Paparan Awam">
+            <LogOut size={14} /> {leaving ? "Keluar…" : "Keluar Mod Admin"}
           </button>
         </div>
       </div>
