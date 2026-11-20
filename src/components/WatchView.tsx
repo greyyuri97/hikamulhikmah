@@ -7,7 +7,6 @@ import { normalize } from "@/lib/utils";
 import CopyButton from "./CopyButton";
 import BookmarkButton from "./BookmarkButton";
 import { Highlighted } from "./NoteCard";
-import { QuoteCardButton } from "./QuoteCard";
 import { saveLastViewed } from "@/lib/progress";
 import { formatTime } from "@/lib/utils";
 
@@ -95,13 +94,13 @@ export default function WatchView({ video, rows, startAt }: { video: DarsVideo; 
   return (
     <div className="-mx-4 sm:mx-0">
       <div className="print-static sticky top-16 z-30 bg-paper pb-2 sm:pt-0">
-        <div className="no-print mx-auto max-w-4xl overflow-hidden bg-black sm:rounded-2xl">
+        <div className="no-print player-cap mx-auto overflow-hidden bg-black sm:rounded-2xl">
           <div className="relative aspect-video"><div ref={holder} className="absolute inset-0 h-full w-full [&>iframe]:h-full [&>iframe]:w-full" /></div>
         </div>
       </div>
 
       <div className="mx-auto max-w-4xl px-4 sm:px-0">
-        <Link href="/dars-syeikhuna" className="no-print mb-2 mt-2 inline-flex items-center gap-1 text-sm text-muted hover:text-accent"><ArrowLeft size={14} /> Semua kuliah</Link>
+        <Link href="/dars-syeikhuna" className="no-print tap mb-1 mt-2 inline-flex min-h-[40px] items-center gap-1 text-sm text-muted hover:text-accent"><ArrowLeft size={14} /> Semua kuliah</Link>
         <header className="mb-4">
           {video.title_arabic && <h2 dir="rtl" className="font-arabic text-2xl leading-relaxed text-accent">{video.title_arabic}</h2>}
           <h1 className="font-serif text-xl font-semibold sm:text-2xl">{video.title_malay}</h1>
@@ -115,7 +114,7 @@ export default function WatchView({ video, rows, startAt }: { video: DarsVideo; 
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex rounded-lg border border-line p-0.5">
               {MODES.map(({ m, label }) => (
-                <button key={m} onClick={() => setMode(m)} className={`rounded-md px-2.5 py-1 text-xs sm:text-sm ${mode === m ? "bg-accent text-white" : "text-muted"}`}>{label}</button>
+                <button key={m} onClick={() => setMode(m)} className={`tap rounded-md px-2.5 py-1.5 text-xs sm:text-sm ${mode === m ? "bg-accent text-white" : "text-muted"}`}>{label}</button>
               ))}
             </div>
             <div className="ml-auto flex">
@@ -134,7 +133,7 @@ export default function WatchView({ video, rows, startAt }: { video: DarsVideo; 
           {shown.map(({ r, i }) => {
             const active = i === current;
             const badge = (
-              <button onClick={() => seek(r.time_seconds)} className={`badge-time cursor-pointer hover:bg-accent hover:text-white ${active ? "!bg-accent !text-white" : ""}`} title="Lompat ke masa ini">
+              <button onClick={() => seek(r.time_seconds)} className={`badge-time tap cursor-pointer hover:bg-accent hover:text-white ${active ? "!bg-accent !text-white" : ""}`} title="Lompat ke masa ini">
                 [{r.time_display}]
               </button>
             );
@@ -143,7 +142,6 @@ export default function WatchView({ video, rows, startAt }: { video: DarsVideo; 
             const tools = (
               <div className="no-print flex justify-end">
                 <BookmarkButton compact item={{ id: `tr:${video.video_id}:${r.time_seconds}`, kind: "transcript", section: "Dars Syeikhuna", title: `${video.title_malay} [${r.time_display}]`, snippet: r.malay_translation || r.arabic_text, href: `/dars-syeikhuna/watch/${video.video_id}?t=${r.time_seconds}` }} />
-                <QuoteCardButton data={{ arabic: mode !== "ms" ? r.arabic_text : undefined, text: mode !== "ar" ? r.malay_translation : undefined, source: `${video.title_malay} — [${r.time_display}]` }} />
                 <CopyButton text={() => `*${video.title_malay}* [${r.time_display}]\n\n${[r.arabic_text, r.malay_translation].filter(Boolean).join("\n\n")}\n\nhttps://youtu.be/${video.youtube_id}?t=${r.time_seconds}`} />
               </div>
             );

@@ -1,11 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut, Database } from "lucide-react";
 import { useExitAdmin } from "@/lib/adminClient";
 import type { DarsVideo, Note, Podcast } from "@/lib/types";
 import { NOTE_SECTIONS } from "@/lib/sections";
-import { setupTabs } from "@/lib/actions";
+import { setupTabs, syncIds } from "@/lib/actions";
 import NotesAdmin from "./NotesAdmin";
 import DarsGenerator from "./DarsGenerator";
 import PodcastAdmin from "./PodcastAdmin";
@@ -24,6 +24,14 @@ export default function AdminDashboard({ data, configured }: { data: Data; confi
   const [msg, setMsg] = useState("");
   const router = useRouter();
   const { exit, leaving } = useExitAdmin();
+
+  // Rows typed directly into the Sheet have no id yet; give them one so they can be edited safely.
+  useEffect(() => {
+    if (!configured) return;
+    syncIds().then((r) => {
+      if (r.ok && Number(r.id) > 0) { setMsg(`✓ ${r.id} rekod dari Sheet diberi ID`); router.refresh(); }
+    });
+  }, [configured, router]);
 
   return (
     <div>

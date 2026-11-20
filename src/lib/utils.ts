@@ -1,9 +1,31 @@
-export function extractYoutubeId(input: string): string | null {
-  const s = input.trim();
+/**
+ * Extract an 11-char video id from any common YouTube link:
+ * watch?v=, &v= (playlist links that include a video), youtu.be/, shorts/, live/, embed/, v/,
+ * m./music./www. hosts, youtube-nocookie.com, missing scheme, trailing params/fragments.
+ * Returns null for playlist-only / channel / garbage links.
+ */
+export function extractYoutubeId(input: string | null | undefined): string | null {
+  const s = String(input ?? "").trim();
+  if (!s) return null;
   if (/^[\w-]{11}$/.test(s)) return s;
-  const m =
-    s.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/|v\/)|youtu\.be\/)([\w-]{11})/) || null;
+  let url: URL;
+  try {
+    url = new URL(/^https?:\/\//i.test(s) ? s : `https://${s}`);
+  } catch {
+    return null;
+  }
+  const host = url.hostname.replace(/^(www\.|m\.|music\.)/, "");
+  const ok = (id: string | null | undefined) => (id && /^[\w-]{11}$/.test(id) ? id : null);
+  if (host === "youtu.be") return ok(url.pathname.split("/")[1]);
+  if (host !== "youtube.com" && host !== "youtube-nocookie.com") return null;
+  const v = ok(url.searchParams.get("v"));
+  if (v) return v;
+  const m = url.pathname.match(/^\/(?:shorts|live|embed|v|e)\/([\w-]{11})/);
   return m ? m[1] : null;
+}
+
+export function isPlaylistOnly(input: string): boolean {
+  return /[?&]list=/.test(input) && !extractYoutubeId(input);
 }
 
 export function ytThumb(id: string) {

@@ -66,7 +66,7 @@ export default function KitabNotesView({
         {months.length > 1 && (
           <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
             {["Semua", ...months].map((m) => (
-              <button key={m} onClick={() => setMonth(m)} className={`shrink-0 rounded-full border px-3 py-1 text-sm transition-colors ${month === m ? "border-accent bg-accent text-white" : "border-line bg-surface text-muted hover:text-ink"}`}>{m}</button>
+              <button key={m} onClick={() => setMonth(m)} className={`tap shrink-0 rounded-full border px-3 py-1.5 text-sm transition-colors ${month === m ? "border-accent bg-accent text-white" : "border-line bg-surface text-muted hover:text-ink"}`}>{m}</button>
             ))}
           </div>
         )}

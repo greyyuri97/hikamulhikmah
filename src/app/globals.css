@@ -96,3 +96,22 @@ html[data-splash="1"] body::before { content: ""; position: fixed; inset: 0; z-i
 .date-input::-webkit-date-and-time-value { text-align: left; }
 .date-input::-webkit-calendar-picker-indicator { opacity: 0.6; cursor: pointer; }
 [data-theme="dark"] .date-input::-webkit-calendar-picker-indicator { filter: invert(1); }
+
+/* ---------- Responsive & touch hardening ---------- */
+/* Never allow sideways scrolling; `clip` (unlike `hidden`) keeps position:sticky working. */
+html, body { overflow-x: clip; }
+/* Long unbroken strings (URLs, isnad chains) must wrap instead of widening the page. */
+main { overflow-wrap: anywhere; }
+.arabic { overflow-wrap: break-word; text-align: right; }
+/* Finger-sized targets on touch screens (WCAG 2.5.5 / Apple HIG 44pt). */
+@media (pointer: coarse) {
+  .btn { min-height: 44px; min-width: 44px; }
+  /* Compact chips (pills, timestamps, footer lock) keep their look but get an enlarged invisible hit area. */
+  .tap { position: relative; }
+  .tap::after { content: ""; position: absolute; inset: -8px -4px; }
+}
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+/* Sticky YouTube player: on wide/short screens cap it to ~45% of the viewport height so transcript stays visible. */
+.player-cap { width: 100%; }
+@media (min-width: 640px) { .player-cap { max-width: min(56rem, calc((100dvh - 4rem) * 0.45 * 16 / 9)); } }

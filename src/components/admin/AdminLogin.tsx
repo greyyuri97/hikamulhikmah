@@ -16,7 +16,7 @@ export default function AdminLogin() {
         setBusy(true); setErr("");
         const r = await fetch("/api/admin/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ password: pw }) });
         setBusy(false);
-        if (r.ok) router.refresh(); else setErr("Kata laluan salah");
+        if (r.ok) router.refresh(); else setErr((await r.json().catch(() => null))?.error || "Kata laluan salah");
       }}
     >
       <div className="flex items-center gap-2"><Lock className="text-accent" size={20} /><h1 className="font-serif text-xl font-semibold">Admin</h1></div>

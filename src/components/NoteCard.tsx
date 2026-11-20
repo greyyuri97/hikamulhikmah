@@ -6,7 +6,6 @@ import CopyButton from "./CopyButton";
 import BookmarkButton from "./BookmarkButton";
 import { updateNote } from "@/lib/actions";
 import { useRouter } from "next/navigation";
-import { QuoteCardButton } from "./QuoteCard";
 import { saveLastViewed } from "@/lib/progress";
 import type { Note } from "@/lib/types";
 import { formatDateMs, toISODate, todayISO } from "@/lib/utils";
@@ -55,7 +54,6 @@ export default function NoteCard({
             <button className="btn-ghost no-print" onClick={() => setEditing(true)}><Pencil size={14} /><span className="text-xs">Edit</span></button>
           )}
           <BookmarkButton compact item={{ id: `${sectionKey}:${note.note_id}`, kind: "note", section: sectionTitle, title: `Tarikh: ${nice}`, snippet: note.content.slice(0, 160), href: `${href}#${note.note_id}` }} />
-          <QuoteCardButton data={{ text: note.content, source: `${sectionTitle} — ${nice}` }} />
           <CopyButton text={waText} />
         </div>
       </div>
@@ -84,7 +82,7 @@ export default function NoteCard({
             {!open && overflow && <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-surface" />}
           </motion.div>
           {overflow && (
-            <button onClick={() => { if (!open) saveLastViewed({ kind: "note", section: sectionTitle, title: `Tarikh: ${nice}`, snippet: note.content.slice(0, 120), href: `${href}#${note.note_id}` }); setOpen((o) => !o); }} className="no-print mt-2 inline-flex items-center gap-1 text-sm font-semibold text-accent hover:text-accent-hover">
+            <button onClick={() => { if (!open) saveLastViewed({ kind: "note", section: sectionTitle, title: `Tarikh: ${nice}`, snippet: note.content.slice(0, 120), href: `${href}#${note.note_id}` }); setOpen((o) => !o); }} className="no-print tap mt-1 inline-flex min-h-[40px] items-center gap-1 text-sm font-semibold text-accent hover:text-accent-hover">
               {open ? "Tutup" : "Baca Penuh"}
               <ChevronDown size={16} className={`transition-transform ${open ? "rotate-180" : ""}`} />
             </button>

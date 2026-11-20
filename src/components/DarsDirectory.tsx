@@ -78,7 +78,7 @@ export default function DarsDirectory({ videos, transcripts }: { videos: DarsVid
         </div>
         <div className="flex flex-wrap gap-2">
           {TYPES.map((t) => (
-            <button key={t} onClick={() => setType(t)} className={`rounded-full border px-3 py-1 text-sm ${type === t ? "border-accent bg-accent text-white" : "border-line bg-surface text-muted"}`}>{t}</button>
+            <button key={t} onClick={() => setType(t)} className={`tap rounded-full border px-3 py-1.5 text-sm ${type === t ? "border-accent bg-accent text-white" : "border-line bg-surface text-muted"}`}>{t}</button>
           ))}
           <select className="input w-auto py-1 text-sm" value={cat} onChange={(e) => setCat(e.target.value)} aria-label="Kategori">
             {categories.map((c) => <option key={c}>{c}</option>)}
@@ -92,7 +92,7 @@ export default function DarsDirectory({ videos, transcripts }: { videos: DarsVid
           <ul className="divide-y divide-line">
             {hits.map((h, i) => (
               <li key={i} className="flex items-start gap-3 py-2">
-                <Link href={`/dars-syeikhuna/watch/${h.video_id}?t=${h.time_seconds}`} className="badge-time mt-0.5 hover:bg-accent hover:text-white">[{h.time_display}]</Link>
+                <Link href={`/dars-syeikhuna/watch/${h.video_id}?t=${h.time_seconds}`} className="badge-time tap mt-0.5 hover:bg-accent hover:text-white">[{h.time_display}]</Link>
                 <div className="min-w-0 text-sm">
                   <p className="font-medium">{h.video.title_malay}</p>
                   {h.arabic_text && <p dir="rtl" className="font-arabic line-clamp-1">{h.arabic_text}</p>}

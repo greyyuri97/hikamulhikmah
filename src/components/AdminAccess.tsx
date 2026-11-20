@@ -48,7 +48,7 @@ export default function AdminAccess() {
       router.push("/admin");
       router.refresh();
     } else {
-      setErr(r ? "PIN / kata laluan salah" : "Tiada sambungan");
+      setErr(r ? (await r.json().catch(() => null))?.error || "PIN / kata laluan salah" : "Tiada sambungan");
       setPw("");
       input.current?.focus();
     }
@@ -63,13 +63,13 @@ export default function AdminAccess() {
               type="button"
               onClick={exit}
               disabled={leaving}
-              className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-[11px] font-semibold text-accent transition-colors hover:bg-accent/20 disabled:opacity-60"
+              className="tap inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-[11px] font-semibold text-accent transition-colors hover:bg-accent/20 disabled:opacity-60"
               aria-label="Keluar Mod Admin"
               title="Keluar ke paparan awam"
             >
               <Unlock size={12} /> {leaving ? "Keluar…" : "Admin Mode (Keluar)"}
             </button>
-            <Link href="/admin" className="rounded-full p-1.5 text-muted opacity-60 hover:text-accent hover:opacity-100" aria-label="Buka Panel Admin" title="Panel Admin">
+            <Link href="/admin" className="tap rounded-full p-2 text-muted opacity-60 hover:text-accent hover:opacity-100" aria-label="Buka Panel Admin" title="Panel Admin">
               <Settings2 size={13} />
             </Link>
           </>
@@ -77,7 +77,7 @@ export default function AdminAccess() {
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="rounded-full p-1.5 text-muted opacity-40 transition-opacity hover:opacity-80 focus-visible:opacity-80"
+            className="tap rounded-full p-2 text-muted opacity-40 transition-opacity hover:opacity-80 focus-visible:opacity-80"
             aria-label="Akses Admin"
             title="Admin"
           >

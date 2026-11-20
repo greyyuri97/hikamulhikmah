@@ -8,6 +8,7 @@ import Logo from "./Logo";
 import { NAV } from "./nav";
 import { useApp, type Theme } from "./Providers";
 import BookmarksDrawer from "./BookmarksDrawer";
+import DisplaySettings from "./DisplaySettings";
 import AdminAccess from "./AdminAccess";
 
 const THEMES: { t: Theme; icon: typeof Sun; label: string }[] = [
@@ -84,6 +85,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             ))}
           </nav>
           <div className="flex items-center gap-1">
+            {/* Desktop/tablet: inline controls */}
+            <div className="hidden items-center gap-1 sm:flex">
             <div className="flex items-center rounded-lg border border-line bg-surface">
               <button onClick={() => bumpScale(-0.05)} className="px-2 py-1.5 text-xs font-semibold text-muted hover:text-ink" aria-label="Kecilkan teks">A-</button>
               <span className="h-4 w-px bg-line" />
@@ -102,7 +105,10 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                 </button>
               ))}
             </div>
-            <button onClick={() => setDrawerOpen(true)} className="relative rounded-lg p-2 text-muted hover:text-accent" aria-label="Simpanan Saya">
+            </div>
+            {/* Phone: one 44px button opens the same controls with full-size targets */}
+            <DisplaySettings />
+            <button onClick={() => setDrawerOpen(true)} className="relative grid h-11 w-11 place-items-center rounded-lg text-muted hover:text-accent" aria-label="Simpanan Saya">
               <Bookmark size={18} />
               {bookmarks.length > 0 && (
                 <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[10px] font-bold text-white">
@@ -133,7 +139,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       <nav className="no-print fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
         <div className="grid grid-cols-6">
           {NAV.map(({ href, short, icon: I }) => (
-            <Link key={href} href={href} className={`flex flex-col items-center gap-0.5 py-2 text-[10px] ${active(href) ? "text-accent" : "text-muted"}`}>
+            <Link key={href} href={href} className={`flex min-h-[52px] flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] ${active(href) ? "text-accent" : "text-muted"}`}>
               <I size={20} strokeWidth={active(href) ? 2.4 : 1.8} />
               {short}
             </Link>
