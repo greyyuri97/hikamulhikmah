@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { ExternalLink } from "lucide-react";
 import { getPodcasts } from "@/lib/googleSheets";
-import { dateValue, ytThumb } from "@/lib/utils";
+import { dateValue, formatDateMs, ytThumb } from "@/lib/utils";
 
 export const metadata = { title: "Podcast Hikmah" };
 export const revalidate = 600;
@@ -26,7 +26,7 @@ export default async function Page() {
             </div>
             <div className="p-3">
               <p className="line-clamp-2 font-medium">{p.title}</p>
-              <p className="mt-1 text-xs text-muted">{p.date_added}</p>
+              <p className="mt-1 text-xs text-muted">{formatDateMs(p.date_added)}</p>
             </div>
           </a>
         ))}

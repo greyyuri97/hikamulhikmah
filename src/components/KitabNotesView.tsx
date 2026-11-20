@@ -2,10 +2,9 @@
 import { useMemo, useState } from "react";
 import { Search, X } from "lucide-react";
 import NoteCard from "./NoteCard";
-import { dateValue, normalize } from "@/lib/utils";
+import { BULAN, dateValue, formatDateMs, normalize } from "@/lib/utils";
 import type { Note } from "@/lib/types";
 
-const BULAN = ["Jan", "Feb", "Mac", "Apr", "Mei", "Jun", "Jul", "Ogo", "Sep", "Okt", "Nov", "Dis"];
 const monthKey = (d: Date) => `${BULAN[d.getMonth()]} ${d.getFullYear()}`;
 
 export default function KitabNotesView({
@@ -30,15 +29,15 @@ export default function KitabNotesView({
 
   const list = useMemo(() => {
     const nq = normalize(q.trim());
-    const f = from ? new Date(from).getTime() : -Infinity;
-    const t = to ? new Date(to).getTime() + 86399999 : Infinity;
+    const f = from ? dateValue(from) : -Infinity;
+    const t = to ? dateValue(to) : Infinity;
     return [...notes]
       .sort((a, b) => dateValue(b.date) - dateValue(a.date))
       .filter((n) => {
         const d = dateValue(n.date);
         if ((from || to) && (d < f || d > t)) return false;
         if (month !== "Semua" && (!d || monthKey(new Date(d)) !== month)) return false;
-        return !nq || normalize(n.content + " " + n.date).includes(nq);
+        return !nq || normalize(`${n.content} ${n.date} ${formatDateMs(n.date)}`).includes(nq);
       });
   }, [notes, q, from, to, month]);
 
@@ -56,9 +55,9 @@ export default function KitabNotesView({
             <input className="input pl-9" placeholder="Cari kata kunci…" value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
           <div className="flex items-center gap-2">
-            <input type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="Dari tarikh" />
+            <input type="date" className="input date-input" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="Dari tarikh" />
             <span className="text-muted">–</span>
-            <input type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Hingga tarikh" />
+            <input type="date" className="input date-input" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Hingga tarikh" />
             {(q || from || to || month !== "Semua") && (
               <button className="btn-ghost" onClick={() => { setQ(""); setFrom(""); setTo(""); setMonth("Semua"); }} aria-label="Kosongkan"><X size={16} /></button>
             )}

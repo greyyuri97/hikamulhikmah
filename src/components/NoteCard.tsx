@@ -9,6 +9,8 @@ import { useRouter } from "next/navigation";
 import { QuoteCardButton } from "./QuoteCard";
 import { saveLastViewed } from "@/lib/progress";
 import type { Note } from "@/lib/types";
+import { formatDateMs, toISODate, todayISO } from "@/lib/utils";
+import DateField from "./DateField";
 
 const COLLAPSED = 7.2; // ~4 lines at leading-7 (rem)
 
@@ -18,7 +20,9 @@ export default function NoteCard({
   const [open, setOpen] = useState(false);
   const [overflow, setOverflow] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [date, setDate] = useState(note.date);
+  const isoDate = toISODate(note.date);
+  const nice = formatDateMs(note.date) || "—";
+  const [date, setDate] = useState(isoDate || todayISO());
   const [content, setContent] = useState(note.content);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -29,9 +33,9 @@ export default function NoteCard({
     const el = ref.current;
     if (el) setOverflow(el.scrollHeight > el.clientHeight + 4);
   }, [note.content]);
-  useEffect(() => { setDate(note.date); setContent(note.content); }, [note]);
+  useEffect(() => { setDate(toISODate(note.date) || todayISO()); setContent(note.content); }, [note]);
 
-  const waText = `*${sectionTitle} — Tarikh: ${note.date}*\n\n${note.content}`;
+  const waText = `*${sectionTitle} — Tarikh: ${nice}*\n\n${note.content}`;
 
   const save = async () => {
     setBusy(true); setErr("");
@@ -44,26 +48,26 @@ export default function NoteCard({
     <motion.article layout="position" id={note.note_id} className="card scroll-mt-24 p-4 sm:p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">
-          <CalendarDays size={13} /> {note.date || "—"}
+          <CalendarDays size={13} /> <time dateTime={isoDate || undefined}>{nice}</time>
         </span>
         <div className="flex items-center">
           {admin && !editing && (
             <button className="btn-ghost no-print" onClick={() => setEditing(true)}><Pencil size={14} /><span className="text-xs">Edit</span></button>
           )}
-          <BookmarkButton compact item={{ id: `${sectionKey}:${note.note_id}`, kind: "note", section: sectionTitle, title: `Tarikh: ${note.date}`, snippet: note.content.slice(0, 160), href: `${href}#${note.note_id}` }} />
-          <QuoteCardButton data={{ text: note.content, source: `${sectionTitle} — ${note.date}` }} />
+          <BookmarkButton compact item={{ id: `${sectionKey}:${note.note_id}`, kind: "note", section: sectionTitle, title: `Tarikh: ${nice}`, snippet: note.content.slice(0, 160), href: `${href}#${note.note_id}` }} />
+          <QuoteCardButton data={{ text: note.content, source: `${sectionTitle} — ${nice}` }} />
           <CopyButton text={waText} />
         </div>
       </div>
 
       {editing ? (
         <div className="space-y-2">
-          <input className="input" value={date} onChange={(e) => setDate(e.target.value)} placeholder="Tarikh" />
+          <DateField value={date} onChange={setDate} />
           <textarea className="input min-h-[220px] leading-7" value={content} onChange={(e) => setContent(e.target.value)} />
           {err && <p className="text-sm text-red-600">{err}</p>}
           <div className="flex gap-2">
             <button className="btn-accent" disabled={busy} onClick={save}><Save size={14} /> {busy ? "Menyimpan…" : "Simpan"}</button>
-            <button className="btn-ghost" onClick={() => { setEditing(false); setContent(note.content); setDate(note.date); }}><X size={14} /> Batal</button>
+            <button className="btn-ghost" onClick={() => { setEditing(false); setContent(note.content); setDate(isoDate || todayISO()); }}><X size={14} /> Batal</button>
           </div>
         </div>
       ) : (
@@ -80,7 +84,7 @@ export default function NoteCard({
             {!open && overflow && <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-surface" />}
           </motion.div>
           {overflow && (
-            <button onClick={() => { if (!open) saveLastViewed({ kind: "note", section: sectionTitle, title: `Tarikh: ${note.date}`, snippet: note.content.slice(0, 120), href: `${href}#${note.note_id}` }); setOpen((o) => !o); }} className="no-print mt-2 inline-flex items-center gap-1 text-sm font-semibold text-accent hover:text-accent-hover">
+            <button onClick={() => { if (!open) saveLastViewed({ kind: "note", section: sectionTitle, title: `Tarikh: ${nice}`, snippet: note.content.slice(0, 120), href: `${href}#${note.note_id}` }); setOpen((o) => !o); }} className="no-print mt-2 inline-flex items-center gap-1 text-sm font-semibold text-accent hover:text-accent-hover">
               {open ? "Tutup" : "Baca Penuh"}
               <ChevronDown size={16} className={`transition-transform ${open ? "rotate-180" : ""}`} />
             </button>

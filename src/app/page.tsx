@@ -5,7 +5,7 @@ import GlobalSearch, { type SearchItem } from "@/components/GlobalSearch";
 import { getNotes, getPodcasts, getTranscripts, getVideos } from "@/lib/googleSheets";
 import { NOTE_SECTIONS } from "@/lib/sections";
 import { NAV } from "@/components/nav";
-import { dateValue } from "@/lib/utils";
+import { dateValue, formatDateMs } from "@/lib/utils";
 
 export const revalidate = 600;
 
@@ -20,7 +20,7 @@ export default async function Home() {
 
   const items: SearchItem[] = [
     ...noteSets.flatMap(([s, list]) =>
-      list.map((n) => ({ section: s.title, title: `Tarikh: ${n.date}`, text: n.content, href: `${s.href}#${n.note_id}` })),
+      list.map((n) => ({ section: s.title, title: `Tarikh: ${formatDateMs(n.date)}`, text: n.content, href: `${s.href}#${n.note_id}` })),
     ),
     ...videos.map((v) => ({ section: "Dars Syeikhuna — Video", title: v.title_malay, text: `${v.title_arabic} ${v.series_name} ${v.category}`, href: `/dars-syeikhuna/watch/${v.video_id}` })),
     ...transcripts.map((t) => ({
@@ -77,7 +77,7 @@ export default async function Home() {
           <div className="grid gap-3 sm:grid-cols-2">
             {latest.map((l, i) => (
               <Link key={i} href={l.href} className="card block p-4 hover:border-accent/50">
-                <div className="mb-1 flex justify-between text-xs"><span className="font-semibold text-accent">{l.section}</span><span className="text-muted">{l.date}</span></div>
+                <div className="mb-1 flex justify-between text-xs"><span className="font-semibold text-accent">{l.section}</span><span className="text-muted">{formatDateMs(l.date)}</span></div>
                 <p className="line-clamp-2 text-sm" dir="auto">{l.title}</p>
               </Link>
             ))}

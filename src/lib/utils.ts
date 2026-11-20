@@ -32,21 +32,69 @@ export function isArabic(text: string): boolean {
   return (letters.match(ARABIC_RE)?.length ?? 0) / letters.length > 0.5;
 }
 
-/** Parse a date string in many formats (YYYY-MM-DD, DD/MM/YYYY, DD-MM-YYYY) into a sortable timestamp. */
+const pad2 = (n: number) => String(n).padStart(2, "0");
+const isoOf = (y: number, m: number, d: number) => `${y}-${pad2(m)}-${pad2(d)}`;
+const valid = (y: number, m: number, d: number) => {
+  const dt = new Date(y, m - 1, d);
+  return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
+};
+
+/**
+ * Normalise any date string we may meet (YYYY-MM-DD, YYYY/M/D, DD/MM/YYYY, DD-MM-YYYY,
+ * "21 Nov 2026", ISO timestamps) to canonical YYYY-MM-DD. Returns "" if unparseable.
+ */
+export function toISODate(input: string | null | undefined): string {
+  const s = String(input ?? "").trim();
+  if (!s) return "";
+  let m = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  if (m && valid(+m[1], +m[2], +m[3])) return isoOf(+m[1], +m[2], +m[3]);
+  m = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/); // Malaysian order: day first
+  if (m && valid(+m[3], +m[2], +m[1])) return isoOf(+m[3], +m[2], +m[1]);
+  m = s.match(/^(\d{1,2})\s+([A-Za-z]{3,})\.?\s+(\d{4})$/);
+  if (m) {
+    const mi = monthIndex(m[2]);
+    if (mi >= 0 && valid(+m[3], mi + 1, +m[1])) return isoOf(+m[3], mi + 1, +m[1]);
+  }
+  return "";
+}
+
+/** Parse a stored date into a local-time sortable timestamp (0 if unknown). */
 export function dateValue(d: string): number {
-  if (!d) return 0;
-  const dmy = d.trim().match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})/);
-  if (dmy) return new Date(+dmy[3], +dmy[2] - 1, +dmy[1]).getTime();
-  const t = Date.parse(d);
-  return isNaN(t) ? 0 : t;
+  const iso = toISODate(d);
+  if (!iso) return 0;
+  const [y, m, day] = iso.split("-").map(Number);
+  return new Date(y, m - 1, day).getTime();
+}
+
+export const BULAN = ["Jan", "Feb", "Mac", "Apr", "Mei", "Jun", "Jul", "Ogo", "Sep", "Okt", "Nov", "Dis"];
+const MONTH_ALIASES = [
+  ["jan"], ["feb"], ["mac", "mar"], ["apr"], ["mei", "may"], ["jun"],
+  ["jul"], ["ogo", "aug"], ["sep"], ["okt", "oct"], ["nov"], ["dis", "dec"],
+];
+function monthIndex(name: string) {
+  const k = name.slice(0, 3).toLowerCase();
+  return MONTH_ALIASES.findIndex((a) => a.includes(k));
+}
+
+/** "2026-11-21" → "21 Nov 2026" (Malay month abbreviations). Falls back to the raw value. */
+export function formatDateMs(d: string): string {
+  const iso = toISODate(d);
+  if (!iso) return d || "";
+  const [y, m, day] = iso.split("-").map(Number);
+  return `${day} ${BULAN[m - 1]} ${y}`;
 }
 
 export function newId(prefix: string) {
   return `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 }
 
-export function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+/**
+ * Today's date as YYYY-MM-DD. In the browser this is the device's local date; on the
+ * server (UTC on Vercel) we use Malaysia time so a note saved at 7am MYT isn't dated yesterday.
+ */
+export function todayISO(timeZone?: string): string {
+  const tz = timeZone ?? (typeof window === "undefined" ? "Asia/Kuala_Lumpur" : undefined);
+  return new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 }
 
 export function normalize(s: string) {

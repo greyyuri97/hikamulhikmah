@@ -4,7 +4,7 @@ import {
   appendRows, deleteById, deleteTranscriptsFor, ensureTabs, sheetsConfigured, updateById,
 } from "./googleSheets";
 import type { SheetKey } from "./sections";
-import { extractYoutubeId, newId, todayISO } from "./utils";
+import { extractYoutubeId, newId, toISODate, todayISO } from "./utils";
 import type { ParsedRow } from "./transcriptParser";
 
 type Result = { ok: true; id?: string } | { ok: false; error: string };
@@ -20,6 +20,14 @@ async function guard<T>(fn: () => Promise<T>): Promise<Result> {
   }
 }
 
+/** Always store YYYY-MM-DD; empty → today (Malaysia time); garbage → error. */
+function cleanDate(input: string) {
+  if (!input?.trim()) return todayISO();
+  const iso = toISODate(input);
+  if (!iso) throw new Error("Tarikh tidak sah — sila pilih dari kalendar");
+  return iso;
+}
+
 const NOTE_KEYS = ["bukhari", "muslim", "fawaid"] as const;
 type NoteKey = (typeof NOTE_KEYS)[number];
 const validNote = (k: string): k is NoteKey => (NOTE_KEYS as readonly string[]).includes(k);
@@ -29,7 +37,7 @@ export async function addNote(section: string, date: string, content: string) {
     if (!validNote(section)) throw new Error("Seksyen tidak sah");
     if (!content.trim()) throw new Error("Kandungan kosong");
     const id = newId(section.slice(0, 3));
-    await appendRows(section, [{ note_id: id, date: date || todayISO(), content }]);
+    await appendRows(section, [{ note_id: id, date: cleanDate(date), content }]);
     return id;
   });
 }
@@ -37,7 +45,7 @@ export async function addNote(section: string, date: string, content: string) {
 export async function updateNote(section: string, id: string, date: string, content: string) {
   return guard(async () => {
     if (!validNote(section)) throw new Error("Seksyen tidak sah");
-    await updateById(section, id, { date, content });
+    await updateById(section, id, { date: cleanDate(date), content });
   });
 }
 
@@ -86,13 +94,13 @@ export async function publishVideo(v: VideoInput, rows: ParsedRow[], replaceId?:
   });
 }
 
-export async function addPodcast(url: string, title: string) {
+export async function addPodcast(url: string, title: string, dateAdded?: string) {
   return guard(async () => {
     const yt = extractYoutubeId(url);
     if (!yt) throw new Error("URL YouTube tidak sah");
     const id = newId("pod");
     await appendRows("podcast", [
-      { podcast_id: id, youtube_url: url, youtube_id: yt, title: title || "Podcast Hikmah", date_added: todayISO() },
+      { podcast_id: id, youtube_url: url, youtube_id: yt, title: title || "Podcast Hikmah", date_added: cleanDate(dateAdded ?? "") },
     ]);
     return id;
   });
