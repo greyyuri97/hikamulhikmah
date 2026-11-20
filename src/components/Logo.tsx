@@ -19,7 +19,7 @@ export default function Logo({ size = "sm" }: { size?: "sm" | "lg" }) {
         src="/logo.png"
         alt="حِكَمُ الحِكْمَةِ — Intisari Kebijaksanaan"
         onError={() => setFailed(true)}
-        className={lg ? "h-28 w-auto sm:h-36 dark-invert" : "h-10 w-auto dark-invert"}
+        className={lg ? "h-40 w-auto sm:h-56 dark-invert" : "h-12 w-auto dark-invert"}
       />
     );
   }
