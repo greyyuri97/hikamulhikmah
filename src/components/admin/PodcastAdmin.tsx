@@ -39,18 +39,27 @@ export default function PodcastAdmin({ podcasts }: { podcasts: Podcast[] }) {
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <div className="card h-fit space-y-3 p-4 lg:sticky lg:top-20">
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      {/* min-w-0 on both columns: without it a long URL in the PDF helper widens the grid
+          track past the viewport (CSS grid items default to min-width:auto). */}
+      <div className="card h-fit min-w-0 space-y-3 p-4 lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto">
         <h2 className="font-serif font-semibold">{editId ? "Edit Podcast" : "Tambah Podcast"}</h2>
-        <input className="input" placeholder="https://www.youtube.com/watch?v=…" value={url} onChange={(e) => setUrl(e.target.value)} aria-label="URL YouTube" />
-        {id && (
-          <div className="overflow-hidden rounded-xl border border-line">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={ytThumb(id)} alt="" className="aspect-video w-full object-cover" />
-          </div>
-        )}
-        <input className="input" placeholder={loading ? "Mengambil tajuk…" : "Tajuk"} value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Tajuk" />
-        <DateField value={date} onChange={setDate} label="Tarikh ditambah" />
+
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-muted">URL YouTube</span>
+          <input className="input" placeholder="https://www.youtube.com/watch?v=…" value={url} onChange={(e) => setUrl(e.target.value)} aria-label="URL YouTube" inputMode="url" />
+        </label>
+
+        <div className="flex items-start gap-3">
+          {id && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={ytThumb(id)} alt="" className="aspect-video w-28 shrink-0 rounded-lg border border-line bg-line object-cover sm:w-36" />
+          )}
+          <label className="block min-w-0 flex-1">
+            <span className="mb-1 block text-xs font-medium text-muted">Tajuk</span>
+            <textarea className="input min-h-[2.75rem] resize-y leading-snug" rows={2} placeholder={loading ? "Mengambil tajuk…" : "Tajuk episod"} value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Tajuk" />
+          </label>
+        </div>
 
         <label className="block">
           <span className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted">
@@ -64,18 +73,22 @@ export default function PodcastAdmin({ podcasts }: { podcasts: Podcast[] }) {
             inputMode="url"
           />
           {pdfLink && (
-            <span className="mt-1.5 block space-y-0.5 rounded-lg bg-accent/5 p-2 text-xs">
+            <span className="mt-1.5 block min-w-0 space-y-0.5 overflow-hidden rounded-lg bg-accent/5 p-2 text-xs">
               <span className="flex items-center gap-1 font-semibold text-accent">
                 <CheckCircle2 size={13} />
                 {pdfLink.kind === "drive" ? `Google Drive dikesan (ID: ${pdfLink.id.slice(0, 10)}…)` : pdfLink.kind === "docs" ? "Google Docs dikesan — dimuat turun sebagai PDF" : pdfLink.isPdf ? "Pautan PDF terus" : "Pautan URL (bukan .pdf — pastikan ia fail PDF)"}
               </span>
-              <a className="block truncate text-muted underline" href={pdfLink.preview} target="_blank" rel="noopener noreferrer">Pratonton: {pdfLink.preview}</a>
-              <a className="block truncate text-muted underline" href={pdfLink.download} target="_blank" rel="noopener noreferrer">Muat turun: {pdfLink.download}</a>
+              <a className="block min-w-0 truncate text-muted underline" href={pdfLink.preview} target="_blank" rel="noopener noreferrer">Pratonton: {pdfLink.preview}</a>
+              <a className="block min-w-0 truncate text-muted underline" href={pdfLink.download} target="_blank" rel="noopener noreferrer">Muat turun: {pdfLink.download}</a>
               {pdfLink.kind !== "direct" && <span className="block text-muted">Pastikan fail dikongsi sebagai “Sesiapa yang ada pautan”.</span>}
             </span>
           )}
           {pdfInvalid && <span className="mt-1 flex items-center gap-1 text-xs text-red-600"><XCircle size={13} /> Pautan tidak dikenali</span>}
         </label>
+
+        <DateField value={date} onChange={setDate} label="Tarikh ditambah" />
+
+
 
         <div className="flex flex-wrap items-center gap-2">
           <button className="btn-accent" disabled={!id || busy || pdfInvalid} onClick={save}>
@@ -86,10 +99,10 @@ export default function PodcastAdmin({ podcasts }: { podcasts: Podcast[] }) {
         </div>
       </div>
 
-      <div className="space-y-2">
+      <div className="min-w-0 space-y-2">
         <p className="text-sm text-muted">{podcasts.length} episod · {podcasts.filter((p) => p.pdf_url).length} dengan PDF</p>
         {podcasts.map((p) => (
-          <div key={p.podcast_id} className="card flex items-center gap-3 p-2">
+          <div key={p.podcast_id} className={`card flex items-center gap-3 p-2 ${editId === p.podcast_id ? "border-accent ring-1 ring-accent/30" : ""}`}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={ytThumb(p.youtube_id)} alt="" className="h-14 w-24 shrink-0 rounded-md object-cover" />
             <div className="min-w-0 flex-1">

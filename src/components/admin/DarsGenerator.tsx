@@ -44,7 +44,7 @@ export default function DarsGenerator({ videos }: { videos: DarsVideo[] }) {
 
   return (
     <div className="space-y-6">
-      <div className="card grid gap-4 p-4 lg:grid-cols-2">
+      <div className="card grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="space-y-3">
           <h2 className="font-serif font-semibold">{editId ? "Kemas kini kuliah (transkrip akan diganti)" : "Penjana Dars Syeikhuna"}</h2>
           <input className="input" placeholder="URL YouTube" value={f.youtube_url} onChange={(e) => set("youtube_url", e.target.value)} />

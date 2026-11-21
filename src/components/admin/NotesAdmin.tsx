@@ -24,8 +24,8 @@ export default function NotesAdmin({ sectionKey, title, notes }: { sectionKey: "
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_1.1fr]">
-      <div className="card h-fit space-y-3 p-4 lg:sticky lg:top-20">
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+      <div className="card h-fit min-w-0 space-y-3 p-4 lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto">
         <h2 className="font-serif font-semibold">{editId ? "Edit nota" : "Tambah nota baharu"} — {title}</h2>
         <DateField value={date} onChange={setDate} />
         <textarea className="input min-h-[260px] leading-7" dir="auto" value={content} onChange={(e) => setContent(e.target.value)} placeholder="Kandungan nota…" />

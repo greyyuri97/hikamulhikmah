@@ -49,9 +49,9 @@ export default function AdminDashboard({ data, configured }: { data: Data; confi
       {!configured && <p className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">Google Sheets belum dikonfigurasi. Isi <code>.env.local</code> (lihat README).</p>}
       {msg && <p className="mb-4 rounded-lg bg-accent/10 p-3 text-sm text-accent">{msg}</p>}
 
-      <div className="mb-5 flex gap-1 overflow-x-auto rounded-xl border border-line bg-surface p-1">
+      <div className="mb-5 grid grid-cols-3 gap-1 rounded-xl border border-line bg-surface p-1 sm:flex" role="tablist">
         {TABS.map((t) => (
-          <button key={t.k} onClick={() => setTab(t.k)} className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm ${tab === t.k ? "bg-accent font-semibold text-white" : "text-muted hover:text-ink"}`}>{t.label}</button>
+          <button key={t.k} onClick={() => setTab(t.k)} role="tab" aria-selected={tab === t.k} className={`min-h-[44px] whitespace-nowrap rounded-lg px-3 py-2 text-sm sm:px-4 ${t.k === "dars" ? "col-span-2" : ""} ${tab === t.k ? "bg-accent font-semibold text-white" : "text-muted hover:text-ink"}`}>{t.label}</button>
         ))}
       </div>
 
