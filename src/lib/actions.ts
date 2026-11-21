@@ -1,11 +1,12 @@
 "use server";
 import { isAdmin } from "./auth";
 import {
-  appendRows, backfillMissingIds, deleteById, deleteTranscriptsFor, ensureTabs, sheetsConfigured, updateById,
+  appendRows, backfillMissingIds, deleteById, ensureHeaders, deleteTranscriptsFor, ensureTabs, sheetsConfigured, updateById,
 } from "./googleSheets";
 import type { SheetKey } from "./sections";
 import { extractYoutubeId, formatTime, isPlaylistOnly, newId, toISODate, todayISO } from "./utils";
 import { cleanText, isSafeId } from "./sanitize";
+import { parsePdfLink } from "./pdfLink";
 import type { ParsedRow } from "./transcriptParser";
 
 type Result = { ok: true; id?: string } | { ok: false; error: string; status?: number };
@@ -125,13 +126,37 @@ export async function publishVideo(v: VideoInput, rows: ParsedRow[], replaceId?:
   });
 }
 
-export async function addPodcast(url: string, title: string, dateAdded?: string) {
+/** "" → no PDF; otherwise must be a recognised Drive/Docs link or an https URL. */
+function cleanPdf(input?: string) {
+  const s = cleanText(input, 2000);
+  if (!s) return "";
+  const p = parsePdfLink(s);
+  if (!p) throw new Error("Pautan PDF tidak sah — guna pautan Google Drive atau URL https://…");
+  return p.canonical;
+}
+
+export async function updatePodcast(id: string, url: string, title: string, dateAdded: string, pdfUrl?: string) {
+  return guard(async () => {
+    if (!isSafeId(id)) throw new Error("ID tidak sah");
+    const yt = extractYoutubeId(url);
+    if (!yt) throw new Error(youtubeError(url));
+    await updateById("podcast", id, {
+      youtube_url: `https://www.youtube.com/watch?v=${yt}`,
+      youtube_id: yt,
+      title: cleanText(title, 300) || "Podcast Hikmah",
+      date_added: cleanDate(dateAdded),
+      pdf_url: cleanPdf(pdfUrl),
+    });
+  });
+}
+
+export async function addPodcast(url: string, title: string, dateAdded?: string, pdfUrl?: string) {
   return guard(async () => {
     const yt = extractYoutubeId(url);
     if (!yt) throw new Error(youtubeError(url));
     const id = newId("pod");
     await appendRows("podcast", [
-      { podcast_id: id, youtube_url: `https://www.youtube.com/watch?v=${yt}`, youtube_id: yt, title: cleanText(title, 300) || "Podcast Hikmah", date_added: cleanDate(dateAdded ?? "") },
+      { podcast_id: id, youtube_url: `https://www.youtube.com/watch?v=${yt}`, youtube_id: yt, title: cleanText(title, 300) || "Podcast Hikmah", date_added: cleanDate(dateAdded ?? ""), pdf_url: cleanPdf(pdfUrl) },
     ]);
     return id;
   });
@@ -139,7 +164,10 @@ export async function addPodcast(url: string, title: string, dateAdded?: string)
 
 /** Give hand-typed Sheet rows a permanent id (run automatically when the dashboard opens). */
 export async function syncIds() {
-  return guard(async () => String(await backfillMissingIds()));
+  return guard(async () => {
+    await ensureHeaders("podcast"); // adds the `pdf_url` column header on older sheets
+    return String(await backfillMissingIds());
+  });
 }
 
 export async function setupTabs() {

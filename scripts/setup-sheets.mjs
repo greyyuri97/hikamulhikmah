@@ -10,7 +10,7 @@ const SHEETS = {
   Fawaid_Zahabiyyah: ["note_id", "date", "content"],
   Dars_Videos: ["video_id", "youtube_id", "title_malay", "title_arabic", "type", "series_name", "episode", "category"],
   Dars_Transcripts: ["video_id", "time_seconds", "time_display", "arabic_text", "malay_translation"],
-  Podcast_Hikmah: ["podcast_id", "youtube_url", "youtube_id", "title", "date_added"],
+  Podcast_Hikmah: ["podcast_id", "youtube_url", "youtube_id", "title", "date_added", "pdf_url"],
 };
 
 const { GOOGLE_SHEETS_CLIENT_EMAIL: email, GOOGLE_SHEETS_PRIVATE_KEY: key, GOOGLE_SHEET_ID: id } = process.env;

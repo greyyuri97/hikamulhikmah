@@ -26,4 +26,6 @@ export interface Podcast {
   youtube_id: string;
   title: string;
   date_added: string;
+  /** Optional — canonical PDF link (Drive /view URL or direct https URL); "" when none. */
+  pdf_url: string;
 }

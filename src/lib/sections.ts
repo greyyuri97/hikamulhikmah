@@ -45,7 +45,7 @@ export const SHEETS = {
     name: "Dars_Transcripts",
     headers: ["video_id", "time_seconds", "time_display", "arabic_text", "malay_translation"],
   },
-  podcast: { name: "Podcast_Hikmah", headers: ["podcast_id", "youtube_url", "youtube_id", "title", "date_added"] },
+  podcast: { name: "Podcast_Hikmah", headers: ["podcast_id", "youtube_url", "youtube_id", "title", "date_added", "pdf_url"] },
 } as const;
 
 export type SheetKey = keyof typeof SHEETS;

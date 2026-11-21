@@ -25,5 +25,6 @@ export const DEMO: Record<SheetKey, (Record<string, string> & { _row: string })[
     { video_id: "v1", time_seconds: "85", time_display: "01:25", arabic_text: "إِنَّمَا الأَعْمَالُ بِالنِّيَّاتِ، وَإِنَّمَا لِكُلِّ امْرِئٍ مَا نَوَى", malay_translation: "Sesungguhnya setiap amalan itu dengan niat, dan bagi setiap orang apa yang dia niatkan." },
   ]),
   podcast: r([
-    { podcast_id: "p_bad", youtube_url: "https://www.youtube.com/playlist?list=PL123", youtube_id: "", title: "Baris rosak (playlist sahaja)", date_added: "" },{ podcast_id: "p1", youtube_url: "https://youtu.be/aqz-KE-bpKQ", youtube_id: "aqz-KE-bpKQ", title: "Podcast Hikmah #1 — Hikmah di sebalik ujian", date_added: "2026-11-19" }]),
+    { podcast_id: "p_bad", youtube_url: "https://www.youtube.com/playlist?list=PL123", youtube_id: "", title: "Baris rosak (playlist sahaja)", date_added: "" },{ podcast_id: "p1", youtube_url: "https://youtu.be/aqz-KE-bpKQ", youtube_id: "aqz-KE-bpKQ", title: "Podcast Hikmah #1 — Hikmah di sebalik ujian", date_added: "2026-11-19", pdf_url: "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view" },
+    { podcast_id: "p2", youtube_url: "https://youtu.be/aqz-KE-bpKQ", youtube_id: "aqz-KE-bpKQ", title: "Podcast Hikmah #2 — Tanpa PDF", date_added: "2026-11-12", pdf_url: "" }]),
 };

@@ -103,6 +103,7 @@ export async function getPodcasts(): Promise<WithRow<Podcast>[]> {
     youtube_id: r.youtube_id.trim(),
     title: r.title || "Podcast Hikmah",
     date_added: r.date_added,
+    pdf_url: (r.pdf_url ?? "").trim(), // column may not exist yet on older sheets → ""
     _row: +r._row,
   }));
 }
@@ -120,8 +121,40 @@ function bust(key: SheetKey) {
   revalidatePath("/", "layout");
 }
 
+/**
+ * Make sure the header row contains every column the app writes (e.g. `pdf_url` added later to
+ * Podcast_Hikmah). Writes are positional, so a missing header is only appended when the existing
+ * headers are an exact prefix of the expected list; otherwise we leave the sheet alone and log it.
+ */
+const headersOk = new Set<SheetKey>();
+export async function ensureHeaders(key: SheetKey): Promise<string[]> {
+  if (headersOk.has(key) || !sheetsConfigured()) return [];
+  const { name, headers } = SHEETS[key];
+  const res = await getClient().spreadsheets.values.get({ spreadsheetId: SHEET_ID(), range: `${name}!1:1` });
+  const current = ((res.data.values?.[0] ?? []) as string[]).map((h) => String(h).trim());
+  const isPrefix = current.every((h, i) => h === headers[i]);
+  const missing = headers.slice(current.length);
+  if (!isPrefix) {
+    console.error(`[sheets] ${name}: header row differs from expected — not modifying`, { current, headers });
+    headersOk.add(key);
+    return [];
+  }
+  if (missing.length) {
+    const startCol = String.fromCharCode(65 + current.length);
+    await getClient().spreadsheets.values.update({
+      spreadsheetId: SHEET_ID(),
+      range: `${name}!${startCol}1`,
+      valueInputOption: "RAW",
+      requestBody: { values: [missing] },
+    });
+  }
+  headersOk.add(key);
+  return missing;
+}
+
 export async function appendRows(key: SheetKey, items: Record<string, unknown>[]) {
   if (!items.length) return;
+  await ensureHeaders(key);
   await getClient().spreadsheets.values.append({
     spreadsheetId: SHEET_ID(),
     range: `${SHEETS[key].name}!A1`,
@@ -173,6 +206,7 @@ export async function backfillMissingIds(): Promise<number> {
 
 export async function updateById(key: SheetKey, id: string, patch: Record<string, unknown>) {
   if (/^row\d+$/.test(id)) throw new Error(UNSYNCED);
+  await ensureHeaders(key);
   const rows = await readSheetRaw(key);
   const idCol = SHEETS[key].headers[0];
   const hit = rows.find((r) => r[idCol] === id);
