@@ -2,6 +2,10 @@ export interface Note {
   note_id: string;
   date: string;
   content: string;
+  /** Optional direct image URL (Drive links are stored already converted to lh3…/d/ID); "" when none. */
+  image_url?: string;
+  /** Optional link to the original Facebook / Telegram / web post; "" when none. */
+  source_url?: string;
 }
 export interface DarsVideo {
   video_id: string;

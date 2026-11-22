@@ -3,7 +3,7 @@ import type { SheetKey } from "./sections";
 const r = (rows: Record<string, string>[]) => rows.map((x, i) => ({ ...x, _row: String(i + 2) }));
 export const DEMO: Record<SheetKey, (Record<string, string> & { _row: string })[]> = {
   bukhari: r([
-    { note_id: "b1", date: "2026-11-14", content: "Bab Bagaimana Permulaan Wahyu.\n\nإِنَّمَا الأَعْمَالُ بِالنِّيَّاتِ\n\nSesungguhnya setiap amalan itu bergantung kepada niat. Imam al-Bukhari memulakan Sahihnya dengan hadis ini sebagai peringatan kepada penuntut ilmu agar memperbetulkan niat sebelum memulakan pengajian.\n\nFaedah: Niat adalah syarat sah ibadah dan ukuran pahala sesuatu amalan." },
+    { note_id: "b1", date: "2026-11-14", image_url: "https://lh3.googleusercontent.com/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345", source_url: "https://www.facebook.com/darulhikmah/posts/123", content: "Bab Bagaimana Permulaan Wahyu.\n\nإِنَّمَا الأَعْمَالُ بِالنِّيَّاتِ\n\nSesungguhnya setiap amalan itu bergantung kepada niat. Imam al-Bukhari memulakan Sahihnya dengan hadis ini sebagai peringatan kepada penuntut ilmu agar memperbetulkan niat sebelum memulakan pengajian.\n\nFaedah: Niat adalah syarat sah ibadah dan ukuran pahala sesuatu amalan." },
     { note_id: "b2", date: "2026-11-07", content: "Kitab al-Iman — Bab Islam dibina atas lima perkara.\n\nPenjelasan Syeikh tentang rukun Islam dan hubungannya dengan iman." },
     { note_id: "b3", date: "2026-10-24", content: "Kitab al-Ilm — Bab kelebihan ilmu. Ilmu sebelum kata-kata dan amalan." },
     // --- edge cases exercised by the audit ---

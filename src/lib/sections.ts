@@ -34,9 +34,9 @@ export const NOTE_SECTIONS: Record<
 };
 
 export const SHEETS = {
-  bukhari: { name: "Bukhari_Notes", headers: ["note_id", "date", "content"] },
-  muslim: { name: "Muslim_Notes", headers: ["note_id", "date", "content"] },
-  fawaid: { name: "Fawaid_Zahabiyyah", headers: ["note_id", "date", "content"] },
+  bukhari: { name: "Bukhari_Notes", headers: ["note_id", "date", "content", "image_url", "source_url"] },
+  muslim: { name: "Muslim_Notes", headers: ["note_id", "date", "content", "image_url", "source_url"] },
+  fawaid: { name: "Fawaid_Zahabiyyah", headers: ["note_id", "date", "content", "image_url", "source_url"] },
   videos: {
     name: "Dars_Videos",
     headers: ["video_id", "youtube_id", "title_malay", "title_arabic", "type", "series_name", "episode", "category"],

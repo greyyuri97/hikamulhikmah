@@ -7,6 +7,7 @@ import type { SheetKey } from "./sections";
 import { extractYoutubeId, formatTime, isPlaylistOnly, newId, toISODate, todayISO } from "./utils";
 import { cleanText, isSafeId } from "./sanitize";
 import { parsePdfLink } from "./pdfLink";
+import { parseImageLink, parseSourceLink } from "./mediaLinks";
 import type { ParsedRow } from "./transcriptParser";
 
 type Result = { ok: true; id?: string } | { ok: false; error: string; status?: number };
@@ -50,24 +51,49 @@ const NOTE_KEYS = ["bukhari", "muslim", "fawaid"] as const;
 type NoteKey = (typeof NOTE_KEYS)[number];
 const validNote = (k: string): k is NoteKey => (NOTE_KEYS as readonly string[]).includes(k);
 
-export async function addNote(section: string, date: string, content: string) {
+export interface NoteExtras { image_url?: string; source_url?: string }
+
+/** "" → none; Drive links → lh3 direct image; other https URLs kept; anything else → error. */
+function cleanImage(input?: string) {
+  const s = cleanText(input, 2000);
+  if (!s) return "";
+  const img = parseImageLink(s);
+  if (!img) throw new Error("Pautan gambar tidak sah — guna pautan Google Drive atau URL https://…");
+  return img.url;
+}
+function cleanSource(input?: string) {
+  const s = cleanText(input, 2000);
+  if (!s) return "";
+  const url = parseSourceLink(s);
+  if (!url) throw new Error("Pautan posting asal tidak sah — mesti bermula dengan http:// atau https://");
+  return url;
+}
+/** Only fields actually sent are written, so an edit that omits them keeps the stored values. */
+function extrasPatch(x?: NoteExtras) {
+  const patch: Record<string, string> = {};
+  if (x && "image_url" in x) patch.image_url = cleanImage(x.image_url);
+  if (x && "source_url" in x) patch.source_url = cleanSource(x.source_url);
+  return patch;
+}
+
+export async function addNote(section: string, date: string, content: string, extras?: NoteExtras) {
   return guard(async () => {
     if (!validNote(section)) throw new Error("Seksyen tidak sah");
     const body = cleanText(content, 50_000);
     if (!body) throw new Error("Kandungan kosong");
     const id = newId(section.slice(0, 3));
-    await appendRows(section, [{ note_id: id, date: cleanDate(date), content: body }]);
+    await appendRows(section, [{ note_id: id, date: cleanDate(date), content: body, ...extrasPatch(extras) }]);
     return id;
   });
 }
 
-export async function updateNote(section: string, id: string, date: string, content: string) {
+export async function updateNote(section: string, id: string, date: string, content: string, extras?: NoteExtras) {
   return guard(async () => {
     if (!validNote(section)) throw new Error("Seksyen tidak sah");
     if (!isSafeId(id)) throw new Error("ID tidak sah");
     const body = cleanText(content, 50_000);
     if (!body) throw new Error("Kandungan kosong");
-    await updateById(section, id, { date: cleanDate(date), content: body });
+    await updateById(section, id, { date: cleanDate(date), content: body, ...extrasPatch(extras) });
   });
 }
 
@@ -184,7 +210,8 @@ export async function addPodcast(url: string, title: string, dateAdded?: string,
 /** Give hand-typed Sheet rows a permanent id (run automatically when the dashboard opens). */
 export async function syncIds() {
   return guard(async () => {
-    await ensureHeaders("podcast"); // adds the `pdf_url` column header on older sheets
+    // Add any newer optional columns to older sheets (pdf_url, image_url, source_url).
+    for (const k of ["bukhari", "muslim", "fawaid", "podcast"] as const) await ensureHeaders(k);
     return String(await backfillMissingIds());
   });
 }

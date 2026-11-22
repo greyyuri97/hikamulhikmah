@@ -7,12 +7,15 @@ import type { Note } from "@/lib/types";
 import { addNote, deleteRecord, deleteRecords, updateNote } from "@/lib/actions";
 import { dateValue, formatDateMs, toISODate, todayISO } from "@/lib/utils";
 import DateField from "@/components/DateField";
+import NoteMediaFields, { mediaInvalid } from "@/components/NoteMediaFields";
 
 type AdminNote = Note & { _row?: number };
 
 export default function NotesAdmin({ sectionKey, title, notes }: { sectionKey: "bukhari" | "muslim" | "fawaid"; title: string; notes: AdminNote[] }) {
   const [date, setDate] = useState(todayISO());
   const [content, setContent] = useState("");
+  const [image, setImage] = useState("");
+  const [source, setSource] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
@@ -42,9 +45,9 @@ export default function NotesAdmin({ sectionKey, title, notes }: { sectionKey: "
 
   const submit = async () => {
     setBusy(true); setMsg("");
-    const r = await runExclusive(() => (editId ? updateNote(sectionKey, editId, date, content) : addNote(sectionKey, date, content)));
+    const r = await runExclusive(() => (editId ? updateNote(sectionKey, editId, date, content, { image_url: image, source_url: source }) : addNote(sectionKey, date, content, { image_url: image, source_url: source })));
     setBusy(false);
-    if (r.ok) { setMsg(editId ? "✓ Dikemas kini" : "✓ Diterbitkan"); setContent(""); setEditId(null); setDate(todayISO()); router.refresh(); }
+    if (r.ok) { setMsg(editId ? "✓ Dikemas kini" : "✓ Diterbitkan"); setContent(""); setImage(""); setSource(""); setEditId(null); setDate(todayISO()); router.refresh(); }
     else setMsg(r.error);
   };
 
@@ -54,9 +57,10 @@ export default function NotesAdmin({ sectionKey, title, notes }: { sectionKey: "
         <h2 className="font-serif font-semibold">{editId ? "Edit nota" : "Tambah nota baharu"} — {title}</h2>
         <DateField value={date} onChange={setDate} />
         <textarea className="input min-h-[260px] leading-7" dir="auto" value={content} onChange={(e) => setContent(e.target.value)} placeholder="Kandungan nota…" />
+        <NoteMediaFields image={image} setImage={setImage} source={source} setSource={setSource} />
         <div className="flex items-center gap-2">
-          <button className="btn-accent" disabled={busy || !content.trim()} onClick={submit}><Plus size={14} /> {busy ? "Menyimpan…" : editId ? "Kemas Kini" : "Terbitkan"}</button>
-          {editId && <button className="btn-ghost" onClick={() => { setEditId(null); setContent(""); setDate(todayISO()); }}>Batal</button>}
+          <button className="btn-accent" disabled={busy || !content.trim() || mediaInvalid(image, source)} onClick={submit}><Plus size={14} /> {busy ? "Menyimpan…" : editId ? "Kemas Kini" : "Terbitkan"}</button>
+          {editId && <button className="btn-ghost" onClick={() => { setEditId(null); setContent(""); setImage(""); setSource(""); setDate(todayISO()); }}>Batal</button>}
           {msg && <span className="text-sm text-accent">{msg}</span>}
         </div>
       </div>
@@ -91,10 +95,14 @@ export default function NotesAdmin({ sectionKey, title, notes }: { sectionKey: "
                 <input type="checkbox" className="h-4 w-4 accent-[var(--accent-primary)]" checked={on} onChange={() => toggle(n.note_id)} />
               </label>
               <div className="min-w-0 flex-1 cursor-pointer" onClick={() => toggle(n.note_id)}>
-                <p className="text-xs font-semibold text-accent">{formatDateMs(n.date)}</p>
+                <p className="flex items-center gap-2 text-xs font-semibold text-accent">
+                  {formatDateMs(n.date)}
+                  {n.image_url && <span className="rounded bg-accent/10 px-1.5 py-px text-[10px]">🖼 Gambar</span>}
+                  {n.source_url && <span className="rounded bg-accent/10 px-1.5 py-px text-[10px]">🔗 Asal</span>}
+                </p>
                 <p className="line-clamp-2 text-sm" dir="auto">{n.content}</p>
               </div>
-              <button className="btn-ghost" aria-label="Edit" onClick={() => { setEditId(n.note_id); setDate(toISODate(n.date) || todayISO()); setContent(n.content); window.scrollTo({ top: 0, behavior: "smooth" }); }}><Pencil size={14} /></button>
+              <button className="btn-ghost" aria-label="Edit" onClick={() => { setEditId(n.note_id); setDate(toISODate(n.date) || todayISO()); setContent(n.content); setImage(n.image_url ?? ""); setSource(n.source_url ?? ""); window.scrollTo({ top: 0, behavior: "smooth" }); }}><Pencil size={14} /></button>
               <button className="btn-ghost hover:!text-red-600" aria-label="Padam" disabled={adminBusy} onClick={() => { if (confirm("Padam nota ini?")) removeNotes([n.note_id]); }}><Trash2 size={14} /></button>
             </div>
           );

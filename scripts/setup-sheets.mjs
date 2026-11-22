@@ -5,9 +5,9 @@ import { google } from "googleapis";
 config({ path: ".env.local" });
 
 const SHEETS = {
-  Bukhari_Notes: ["note_id", "date", "content"],
-  Muslim_Notes: ["note_id", "date", "content"],
-  Fawaid_Zahabiyyah: ["note_id", "date", "content"],
+  Bukhari_Notes: ["note_id", "date", "content", "image_url", "source_url"],
+  Muslim_Notes: ["note_id", "date", "content", "image_url", "source_url"],
+  Fawaid_Zahabiyyah: ["note_id", "date", "content", "image_url", "source_url"],
   Dars_Videos: ["video_id", "youtube_id", "title_malay", "title_arabic", "type", "series_name", "episode", "category"],
   Dars_Transcripts: ["video_id", "time_seconds", "time_display", "arabic_text", "malay_translation"],
   Podcast_Hikmah: ["podcast_id", "youtube_url", "youtube_id", "title", "date_added", "pdf_url"],

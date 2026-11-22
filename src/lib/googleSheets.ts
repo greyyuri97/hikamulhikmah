@@ -154,7 +154,15 @@ export async function getNotes(key: "bukhari" | "muslim" | "fawaid"): Promise<Wi
   // Skip rows without content or id (half-filled rows typed manually in the Sheet).
   return rows
     .filter((r) => r.content?.trim())
-    .map((r) => ({ note_id: r.note_id.trim(), date: (r.date ?? "").trim(), content: r.content, _row: +r._row }));
+    .map((r) => ({
+      note_id: r.note_id.trim(),
+      date: (r.date ?? "").trim(),
+      content: r.content,
+      // Columns may not exist yet on older sheets → "" (UI hides empty fields).
+      image_url: (r.image_url ?? "").trim(),
+      source_url: (r.source_url ?? "").trim(),
+      _row: +r._row,
+    }));
 }
 
 export async function getVideos(): Promise<WithRow<DarsVideo>[]> {
