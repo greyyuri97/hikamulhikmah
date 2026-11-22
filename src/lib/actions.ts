@@ -1,7 +1,7 @@
 "use server";
 import { isAdmin } from "./auth";
 import {
-  appendRows, backfillMissingIds, deleteById, ensureHeaders, deleteTranscriptsFor, ensureTabs, sheetsConfigured, updateById,
+  appendRows, backfillMissingIds, deleteById, ensureHeaders, revalidateEverything, deleteTranscriptsFor, ensureTabs, sheetsConfigured, updateById,
 } from "./googleSheets";
 import type { SheetKey } from "./sections";
 import { extractYoutubeId, formatTime, isPlaylistOnly, newId, toISODate, todayISO } from "./utils";
@@ -167,6 +167,13 @@ export async function syncIds() {
   return guard(async () => {
     await ensureHeaders("podcast"); // adds the `pdf_url` column header on older sheets
     return String(await backfillMissingIds());
+  });
+}
+
+/** Admin button "Muat Semula Cache": force every section to re-read the Sheet. */
+export async function refreshCache() {
+  return guard(async () => {
+    revalidateEverything();
   });
 }
 

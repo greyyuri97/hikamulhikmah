@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { runExclusive, useAdminBusy } from "@/lib/adminClient";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import type { Note } from "@/lib/types";
 import { addNote, deleteRecord, updateNote } from "@/lib/actions";
@@ -14,10 +15,11 @@ export default function NotesAdmin({ sectionKey, title, notes }: { sectionKey: "
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const router = useRouter();
+  const adminBusy = useAdminBusy();
 
   const submit = async () => {
     setBusy(true); setMsg("");
-    const r = editId ? await updateNote(sectionKey, editId, date, content) : await addNote(sectionKey, date, content);
+    const r = await runExclusive(() => (editId ? updateNote(sectionKey, editId, date, content) : addNote(sectionKey, date, content)));
     setBusy(false);
     if (r.ok) { setMsg(editId ? "✓ Dikemas kini" : "✓ Diterbitkan"); setContent(""); setEditId(null); setDate(todayISO()); router.refresh(); }
     else setMsg(r.error);
@@ -44,9 +46,9 @@ export default function NotesAdmin({ sectionKey, title, notes }: { sectionKey: "
               <p className="line-clamp-2 text-sm" dir="auto">{n.content}</p>
             </div>
             <button className="btn-ghost" aria-label="Edit" onClick={() => { setEditId(n.note_id); setDate(toISODate(n.date) || todayISO()); setContent(n.content); window.scrollTo({ top: 0, behavior: "smooth" }); }}><Pencil size={14} /></button>
-            <button className="btn-ghost hover:!text-red-600" aria-label="Padam" onClick={async () => {
+            <button className="btn-ghost hover:!text-red-600" aria-label="Padam" disabled={adminBusy} onClick={async () => {
               if (!confirm("Padam nota ini?")) return;
-              const r = await deleteRecord(sectionKey, n.note_id);
+              const r = await runExclusive(() => deleteRecord(sectionKey, n.note_id));
               if (!r.ok) alert(r.error); else router.refresh();
             }}><Trash2 size={14} /></button>
           </div>

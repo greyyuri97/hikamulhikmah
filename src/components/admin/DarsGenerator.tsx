@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { runExclusive, useAdminBusy } from "@/lib/adminClient";
 import { Pencil, Rocket, Trash2, Upload } from "lucide-react";
 import type { DarsVideo } from "@/lib/types";
 import { deleteRecord, publishVideo } from "@/lib/actions";
@@ -23,6 +24,7 @@ export default function DarsGenerator({ videos }: { videos: DarsVideo[] }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const router = useRouter();
+  const adminBusy = useAdminBusy();
   const rows = useMemo(() => parseTranscript(raw), [raw]);
   const yt = extractYoutubeId(f.youtube_url);
   const seriesNames = Array.from(new Set(videos.map((v) => v.series_name).filter(Boolean)));
@@ -36,7 +38,7 @@ export default function DarsGenerator({ videos }: { videos: DarsVideo[] }) {
 
   const publish = async () => {
     setBusy(true); setMsg("");
-    const r = await publishVideo({ ...f, episode: Number(f.episode) }, rows, editId ?? undefined);
+    const r = await runExclusive(() => publishVideo({ ...f, episode: Number(f.episode) }, rows, editId ?? undefined));
     setBusy(false);
     if (r.ok) { setMsg(`✓ Diterbitkan (${rows.length} baris transkrip)`); setF(EMPTY); setRaw(""); setEditId(null); router.refresh(); }
     else setMsg(r.error);
@@ -127,9 +129,9 @@ export default function DarsGenerator({ videos }: { videos: DarsVideo[] }) {
               setRaw("");
               window.scrollTo({ top: 0, behavior: "smooth" });
             }}><Pencil size={14} /></button>
-            <button className="btn-ghost hover:!text-red-600" aria-label="Padam" onClick={async () => {
+            <button className="btn-ghost hover:!text-red-600" aria-label="Padam" disabled={adminBusy} onClick={async () => {
               if (!confirm("Padam kuliah ini beserta transkripnya?")) return;
-              const r = await deleteRecord("videos", v.video_id);
+              const r = await runExclusive(() => deleteRecord("videos", v.video_id));
               if (!r.ok) alert(r.error); else router.refresh();
             }}><Trash2 size={14} /></button>
           </div>

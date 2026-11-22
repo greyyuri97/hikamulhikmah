@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { runExclusive, useAdminBusy } from "@/lib/adminClient";
 import { CheckCircle2, FileText, Pencil, Plus, Save, Trash2, XCircle } from "lucide-react";
 import type { Podcast } from "@/lib/types";
 import { addPodcast, deleteRecord, updatePodcast } from "@/lib/actions";
@@ -18,6 +19,7 @@ export default function PodcastAdmin({ podcasts }: { podcasts: Podcast[] }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const router = useRouter();
+  const adminBusy = useAdminBusy();
   const id = extractYoutubeId(url);
   const pdfLink = parsePdfLink(pdf);
   const pdfInvalid = pdf.trim() !== "" && !pdfLink;
@@ -33,7 +35,7 @@ export default function PodcastAdmin({ podcasts }: { podcasts: Podcast[] }) {
 
   const save = async () => {
     setBusy(true); setMsg("");
-    const r = editId ? await updatePodcast(editId, url, title, date, pdf) : await addPodcast(url, title, date, pdf);
+    const r = await runExclusive(() => (editId ? updatePodcast(editId, url, title, date, pdf) : addPodcast(url, title, date, pdf)));
     setBusy(false);
     if (r.ok) { setMsg(editId ? "✓ Dikemas kini" : "✓ Disimpan"); reset(); router.refresh(); } else setMsg(r.error);
   };
@@ -117,9 +119,9 @@ export default function PodcastAdmin({ podcasts }: { podcasts: Podcast[] }) {
               setDate(toISODate(p.date_added) || todayISO()); setPdf(p.pdf_url); setMsg("");
               window.scrollTo({ top: 0, behavior: "smooth" });
             }}><Pencil size={14} /></button>
-            <button className="btn-ghost hover:!text-red-600" aria-label="Padam" onClick={async () => {
+            <button className="btn-ghost hover:!text-red-600" aria-label="Padam" disabled={adminBusy} onClick={async () => {
               if (!confirm("Padam podcast ini?")) return;
-              const r = await deleteRecord("podcast", p.podcast_id);
+              const r = await runExclusive(() => deleteRecord("podcast", p.podcast_id));
               if (!r.ok) alert(r.error); else router.refresh();
             }}><Trash2 size={14} /></button>
           </div>

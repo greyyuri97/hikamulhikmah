@@ -1,11 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, Database } from "lucide-react";
+import { LogOut, Database, RefreshCw } from "lucide-react";
 import { useExitAdmin } from "@/lib/adminClient";
 import type { DarsVideo, Note, Podcast } from "@/lib/types";
 import { NOTE_SECTIONS } from "@/lib/sections";
-import { setupTabs, syncIds } from "@/lib/actions";
+import { refreshCache, setupTabs, syncIds } from "@/lib/actions";
+import { runExclusive } from "@/lib/adminClient";
 import NotesAdmin from "./NotesAdmin";
 import DarsGenerator from "./DarsGenerator";
 import PodcastAdmin from "./PodcastAdmin";
@@ -28,7 +29,9 @@ export default function AdminDashboard({ data, configured }: { data: Data; confi
   // Rows typed directly into the Sheet have no id yet; give them one so they can be edited safely.
   useEffect(() => {
     if (!configured) return;
-    syncIds().then((r) => {
+    // Once per browser session — it reads every tab, so don't repeat it on each refresh.
+    try { if (sessionStorage.getItem("hk-ids-synced") === "1") return; sessionStorage.setItem("hk-ids-synced", "1"); } catch {}
+    runExclusive(() => syncIds()).then((r) => {
       if (r.ok && Number(r.id) > 0) { setMsg(`✓ ${r.id} rekod dari Sheet diberi ID`); router.refresh(); }
     });
   }, [configured, router]);
@@ -38,6 +41,13 @@ export default function AdminDashboard({ data, configured }: { data: Data; confi
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <h1 className="font-serif text-2xl font-semibold">Pusat Kawalan Admin</h1>
         <div className="flex gap-2">
+          <button className="btn-ghost border border-line" title="Paksa semua seksyen membaca semula Google Sheet" onClick={async () => {
+            const r = await runExclusive(() => refreshCache());
+            setMsg(r.ok ? "✓ Cache dimuat semula — data terkini dari Google Sheet" : r.error);
+            router.refresh();
+          }}>
+            <RefreshCw size={14} /> Muat Semula Cache
+          </button>
           <button className="btn-ghost border border-line" onClick={async () => { const r = await setupTabs(); setMsg(r.ok ? `Tab disediakan: ${r.id}` : r.error); router.refresh(); }}>
             <Database size={14} /> Sediakan Tab Sheets
           </button>
