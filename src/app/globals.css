@@ -13,15 +13,6 @@
   --font-scale: 1;
   color-scheme: light;
 }
-[data-theme="sepia"] {
-  --bg-primary: #efe4cc;
-  --bg-surface: #f8f0dc;
-  --border: #dccdaa;
-  --text-primary: #3b2f1e;
-  --text-secondary: #6b5a40;
-  --accent-primary: #9a420a;
-  --accent-hover: #7a3306;
-}
 [data-theme="dark"] {
   --bg-primary: #121519;
   --bg-surface: #1a1e24;

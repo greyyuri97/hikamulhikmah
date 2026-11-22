@@ -3,23 +3,19 @@ import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Bookmark, Moon, Sun, BookOpenText } from "lucide-react";
+import { Bookmark } from "lucide-react";
 import Logo from "./Logo";
 import { NAV } from "./nav";
-import { useApp, type Theme } from "./Providers";
+import { useApp } from "./Providers";
 import BookmarksDrawer from "./BookmarksDrawer";
 import DisplaySettings from "./DisplaySettings";
+import ThemeToggle from "./ThemeToggle";
 import AdminAccess from "./AdminAccess";
 
-const THEMES: { t: Theme; icon: typeof Sun; label: string }[] = [
-  { t: "light", icon: Sun, label: "Cerah" },
-  { t: "sepia", icon: BookOpenText, label: "Sepia" },
-  { t: "dark", icon: Moon, label: "Gelap" },
-];
 
 export default function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { theme, setTheme, bumpScale, bookmarks, setDrawerOpen } = useApp();
+  const { bumpScale, bookmarks, setDrawerOpen } = useApp();
   const [splash, setSplash] = useState(false);
   const isAdmin = pathname.startsWith("/admin");
 
@@ -92,22 +88,10 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               <span className="h-4 w-px bg-line" />
               <button onClick={() => bumpScale(0.05)} className="px-2 py-1.5 text-sm font-semibold text-muted hover:text-ink" aria-label="Besarkan teks">A+</button>
             </div>
-            <div className="flex items-center rounded-lg border border-line bg-surface p-0.5">
-              {THEMES.map(({ t, icon: I, label }) => (
-                <button
-                  key={t}
-                  onClick={() => setTheme(t)}
-                  className={`rounded-md p-1.5 ${theme === t ? "bg-accent text-white" : "text-muted hover:text-ink"}`}
-                  aria-label={label}
-                  title={label}
-                >
-                  <I size={14} />
-                </button>
-              ))}
             </div>
-            </div>
-            {/* Phone: one 44px button opens the same controls with full-size targets */}
+            {/* Phone: text-size controls live in one 44px popover */}
             <DisplaySettings />
+            <ThemeToggle />
             <button onClick={() => setDrawerOpen(true)} className="relative grid h-11 w-11 place-items-center rounded-lg text-muted hover:text-accent" aria-label="Simpanan Saya">
               <Bookmark size={18} />
               {bookmarks.length > 0 && (

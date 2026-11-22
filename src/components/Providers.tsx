@@ -1,7 +1,10 @@
 "use client";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 
-export type Theme = "light" | "sepia" | "dark";
+export type Theme = "light" | "dark";
+
+/** Older versions stored "sepia"; anything that isn't "dark" becomes the default light theme. */
+export const normalizeTheme = (v: unknown): Theme => (v === "dark" ? "dark" : "light");
 export interface Bookmark {
   id: string;
   kind: "note" | "transcript" | "video" | "podcast";
@@ -15,6 +18,7 @@ export interface Bookmark {
 interface Ctx {
   theme: Theme;
   setTheme: (t: Theme) => void;
+  toggleTheme: () => void;
   scale: number;
   bumpScale: (d: number) => void;
   bookmarks: Bookmark[];
@@ -51,7 +55,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
-    setThemeS(read<Theme>("hk-theme", "light"));
+    setThemeS(normalizeTheme(read<string>("hk-theme", "light")));
     setScale(read<number>("hk-scale", 1));
     setBookmarks(read<Bookmark[]>("hk-bookmarks", []));
   }, []);
@@ -78,6 +82,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       value={{
         theme,
         setTheme: setThemeS,
+        toggleTheme: () => setThemeS((t) => (t === "dark" ? "light" : "dark")),
         scale,
         bumpScale,
         bookmarks,
