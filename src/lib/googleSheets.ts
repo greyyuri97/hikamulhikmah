@@ -47,13 +47,15 @@ async function withRetry<T>(label: string, fn: () => Promise<T>, mode: RetryMode
   let last: unknown;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
+      if (process.env.SHEETS_DEBUG === "1") console.log(`[sheets-call] ${label}${attempt ? ` (retry ${attempt})` : ""}`);
       return await fn();
     } catch (e) {
       last = e;
       const code = Number((e as { code?: number; status?: number })?.code ?? (e as { status?: number })?.status) || 0;
       const retryable = mode === "idempotent" ? code === 0 || code === 429 || code >= 500 : code === 429;
       if (!retryable || attempt === retries) break;
-      const wait = 500 * 2 ** attempt + Math.random() * 300;
+      // 429 = per-minute quota: short waits just burn more quota, so back off harder (≈1s, 3s, 6s).
+      const wait = (code === 429 ? [1000, 3000, 6000][attempt] ?? 6000 : 500 * 2 ** attempt) + Math.random() * 400;
       console.warn(`[sheets] ${label}: HTTP ${code || "network"} — retry ${attempt + 1}/${retries} in ${Math.round(wait)}ms`);
       await sleep(wait);
     }
@@ -120,9 +122,20 @@ const cachedAll = unstable_cache(readAllRaw, ["sheets-all", CACHE_VERSION], {
 });
 let lastGood: Record<SheetKey, Row[]> | null = null;
 
+/**
+ * In-flight de-duplication: a page asks for several sections at once (Promise.all), and right after
+ * a cache invalidation each of those would miss and fire its own batchGet. Sharing one pending
+ * promise per server instance turns 5–10 simultaneous API calls into 1.
+ */
+let inflight: Promise<Record<SheetKey, Row[]>> | null = null;
+function loadAll() {
+  if (!inflight) inflight = cachedAll().finally(() => { inflight = null; });
+  return inflight;
+}
+
 async function cachedRead(key: SheetKey): Promise<Row[]> {
   try {
-    const all = await cachedAll();
+    const all = await loadAll();
     lastGood = all;
     return all[key];
   } catch (e) {
@@ -309,9 +322,21 @@ async function updateByIdUnsafe(key: SheetKey, id: string, patch: Record<string,
 
 // Tab ids (gid) never change, so look them up once per server instance — saves a read per delete.
 const gidCache = new Map<string, number>();
+const cachedGids = unstable_cache(
+  async () => {
+    const meta = await withRetry("sheet ids", () => getClient().spreadsheets.get({ spreadsheetId: SHEET_ID(), fields: "sheets.properties(title,sheetId)" }));
+    return Object.fromEntries((meta.data.sheets ?? []).map((sh) => [sh.properties?.title ?? "", sh.properties?.sheetId ?? -1]));
+  },
+  ["sheet-gids", CACHE_VERSION],
+  { revalidate: 86400 },
+);
 async function sheetGid(name: string): Promise<number> {
   const cached = gidCache.get(name);
   if (cached !== undefined) return cached;
+  try {
+    const all = await cachedGids();
+    if (typeof all[name] === "number" && all[name] >= 0) { gidCache.set(name, all[name]); return all[name]; }
+  } catch { /* fall through to a direct lookup */ }
   const meta = await withRetry("sheet metadata", () => getClient().spreadsheets.get({ spreadsheetId: SHEET_ID(), fields: "sheets.properties" }));
   for (const sh of meta.data.sheets ?? []) if (sh.properties?.title && sh.properties.sheetId != null) gidCache.set(sh.properties.title, sh.properties.sheetId);
   const s = meta.data.sheets?.find((x) => x.properties?.title === name);
@@ -366,21 +391,68 @@ async function deleteRowNumbers(key: SheetKey, rowNums: number[], expectedIds?: 
   bust(key);
 }
 
-export async function deleteById(key: SheetKey, id: string) {
+/** Read only the id column of a tab: [{ row, id }] for every non-empty id. */
+async function readIdColumn(key: SheetKey): Promise<{ row: number; id: string }[]> {
+  const { name } = SHEETS[key];
+  const res = await withRetry(`ids ${name}`, () => getClient().spreadsheets.values.get({ spreadsheetId: SHEET_ID(), range: `${name}!A2:A` }));
+  return ((res.data.values ?? []) as string[][]).map((r, i) => ({ row: i + 2, id: String(r?.[0] ?? "").trim() })).filter((x) => x.id);
+}
+
+/**
+ * Delete several records by exact unique id with as few API calls as possible:
+ *   1 read  — re-check the id cell at each row the client last saw (hint),
+ *   (+1)    — only if some rows moved: read the id column (column A only) to relocate them,
+ *   0–1     — tab gid (cached for a day across instances),
+ *   1 write — one batchUpdate deleting every verified row bottom-up.
+ * An id that is missing or appears twice is refused; nothing is ever matched by position alone.
+ */
+export async function deleteByIds(key: SheetKey, items: { id: string; row?: number }[]): Promise<{ deleted: string[]; missing: string[] }> {
   return serialized(async () => {
-    if (/^row\d+$/.test(id)) throw new Error(UNSYNCED);
-    const idCol = SHEETS[key].headers[0];
-    const hits = (await readSheetRaw(key)).filter((r) => r[idCol] === id);
-    if (hits.length === 0) throw new Error("Rekod tidak dijumpai (mungkin sudah dipadam). Muat semula halaman.");
-    if (hits.length > 1) throw new Error(`ID "${id}" muncul ${hits.length} kali dalam Sheet — betulkan secara manual dahulu.`);
-    await deleteRowNumbers(key, [Number(hits[0]._row)], [id]);
+    const { name } = SHEETS[key];
+    const wanted = [...new Map(items.map((x) => [x.id, x])).values()];
+    if (wanted.some((x) => /^row\d+$/.test(x.id))) throw new Error(UNSYNCED);
+    const resolved = new Map<string, number>();
+
+    // 1) cheap path: verify the row hints in one batchGet
+    const hinted = wanted.filter((x) => Number.isInteger(x.row) && (x.row as number) >= 2);
+    if (hinted.length) {
+      const res = await withRetry(`verify ${name}`, () =>
+        getClient().spreadsheets.values.batchGet({ spreadsheetId: SHEET_ID(), ranges: hinted.map((x) => `${name}!A${x.row}`) }),
+      );
+      hinted.forEach((x, i) => {
+        if (String(res.data.valueRanges?.[i]?.values?.[0]?.[0] ?? "").trim() === x.id) resolved.set(x.id, x.row as number);
+      });
+    }
+    // 2) relocate anything that moved / had no hint, using the id column only
+    const missing: string[] = [];
+    const unresolved = wanted.filter((x) => !resolved.has(x.id));
+    if (unresolved.length) {
+      const col = await readIdColumn(key);
+      for (const x of unresolved) {
+        const hits = col.filter((c) => c.id === x.id);
+        if (hits.length > 1) throw new Error(`ID "${x.id}" muncul ${hits.length} kali dalam Sheet — betulkan secara manual dahulu.`);
+        if (hits.length === 1) resolved.set(x.id, hits[0].row); else missing.push(x.id);
+      }
+    }
+    // Also refuse if a verified id exists twice elsewhere — only checked when we had to read column A.
+    const rows = [...resolved.values()];
+    if (new Set(rows).size !== rows.length) throw new Error("Dua ID merujuk baris yang sama — tiada apa-apa dipadam.");
+    if (rows.length) {
+      await deleteRowNumbers(key, rows); // ids already verified above in this same serialised step
+    }
+    return { deleted: [...resolved.keys()], missing };
   });
+}
+
+export async function deleteById(key: SheetKey, id: string, rowHint?: number) {
+  const r = await deleteByIds(key, [{ id, row: rowHint }]);
+  if (r.missing.length) throw new Error("Rekod tidak dijumpai (mungkin sudah dipadam). Muat semula halaman.");
 }
 
 export async function deleteTranscriptsFor(videoId: string) {
   return serialized(async () => {
-    const hits = (await readSheetRaw("transcripts")).filter((r) => r.video_id === videoId);
-    await deleteRowNumbers("transcripts", hits.map((r) => Number(r._row)), hits.map(() => videoId));
+    const hits = (await readIdColumn("transcripts")).filter((r) => r.id === videoId);
+    await deleteRowNumbers("transcripts", hits.map((r) => r.row), hits.map(() => videoId));
   });
 }
 

@@ -131,7 +131,7 @@ export default function DarsGenerator({ videos }: { videos: DarsVideo[] }) {
             }}><Pencil size={14} /></button>
             <button className="btn-ghost hover:!text-red-600" aria-label="Padam" disabled={adminBusy} onClick={async () => {
               if (!confirm("Padam kuliah ini beserta transkripnya?")) return;
-              const r = await runExclusive(() => deleteRecord("videos", v.video_id));
+              const r = await runExclusive(() => deleteRecord("videos", v.video_id, (v as { _row?: number })._row));
               if (!r.ok) alert(r.error); else router.refresh();
             }}><Trash2 size={14} /></button>
           </div>

@@ -1,7 +1,7 @@
 "use server";
 import { isAdmin } from "./auth";
 import {
-  appendRows, backfillMissingIds, deleteById, ensureHeaders, revalidateEverything, deleteTranscriptsFor, ensureTabs, sheetsConfigured, updateById,
+  appendRows, backfillMissingIds, deleteById, deleteByIds, ensureHeaders, revalidateEverything, deleteTranscriptsFor, ensureTabs, sheetsConfigured, updateById,
 } from "./googleSheets";
 import type { SheetKey } from "./sections";
 import { extractYoutubeId, formatTime, isPlaylistOnly, newId, toISODate, todayISO } from "./utils";
@@ -23,7 +23,12 @@ async function guard<T>(fn: () => Promise<T>): Promise<Result> {
     const r = await fn();
     return { ok: true, id: typeof r === "string" ? r : undefined };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Ralat tidak diketahui" };
+    const code = Number((e as { code?: number })?.code ?? (e as { status?: number })?.status);
+    const msg = e instanceof Error ? e.message : "";
+    if (code === 429 || /quota exceeded|rate limit/i.test(msg)) {
+      return { ok: false, status: 429, error: "Had Google Sheets dicapai (60 bacaan/minit). Tiada data diubah — tunggu kira-kira 1 minit, kemudian cuba lagi." };
+    }
+    return { ok: false, error: msg || "Ralat tidak diketahui" };
   }
 }
 
@@ -66,12 +71,26 @@ export async function updateNote(section: string, id: string, date: string, cont
   });
 }
 
-export async function deleteRecord(key: SheetKey, id: string) {
+const DELETABLE: SheetKey[] = ["bukhari", "muslim", "fawaid", "videos", "podcast"];
+
+export async function deleteRecord(key: SheetKey, id: string, rowHint?: number) {
   return guard(async () => {
-    if (!["bukhari", "muslim", "fawaid", "videos", "podcast"].includes(key)) throw new Error("Tidak dibenarkan");
+    if (!DELETABLE.includes(key)) throw new Error("Tidak dibenarkan");
     if (!isSafeId(id)) throw new Error("ID tidak sah");
     if (key === "videos") await deleteTranscriptsFor(id);
-    await deleteById(key, id);
+    await deleteById(key, id, Number.isInteger(rowHint) ? rowHint : undefined);
+  });
+}
+
+/** Bulk delete (multi-select). ~2 API reads + 1 write regardless of how many items. */
+export async function deleteRecords(key: SheetKey, items: { id: string; row?: number }[]) {
+  return guard(async () => {
+    if (!DELETABLE.includes(key) || key === "videos") throw new Error("Tidak dibenarkan");
+    if (!Array.isArray(items) || !items.length || items.length > 100) throw new Error("Pilih 1–100 rekod");
+    const clean = items.map((x) => ({ id: String(x?.id ?? ""), row: Number.isInteger(x?.row) ? Number(x.row) : undefined }));
+    if (clean.some((x) => !isSafeId(x.id))) throw new Error("ID tidak sah");
+    const r = await deleteByIds(key, clean);
+    return `${r.deleted.length}${r.missing.length ? ` (${r.missing.length} sudah tiada)` : ""}`;
   });
 }
 

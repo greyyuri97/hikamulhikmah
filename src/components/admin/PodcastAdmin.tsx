@@ -121,7 +121,7 @@ export default function PodcastAdmin({ podcasts }: { podcasts: Podcast[] }) {
             }}><Pencil size={14} /></button>
             <button className="btn-ghost hover:!text-red-600" aria-label="Padam" disabled={adminBusy} onClick={async () => {
               if (!confirm("Padam podcast ini?")) return;
-              const r = await runExclusive(() => deleteRecord("podcast", p.podcast_id));
+              const r = await runExclusive(() => deleteRecord("podcast", p.podcast_id, (p as { _row?: number })._row));
               if (!r.ok) alert(r.error); else router.refresh();
             }}><Trash2 size={14} /></button>
           </div>
