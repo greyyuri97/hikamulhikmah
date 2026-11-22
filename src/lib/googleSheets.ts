@@ -33,18 +33,29 @@ const CACHE_VERSION = "v2"; // bump to orphan any poisoned cache entries from ol
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Retry transient Google errors (quota 429, 5xx, network) with backoff; rethrow everything else. */
-async function withRetry<T>(label: string, fn: () => Promise<T>, attempts = 3): Promise<T> {
+type RetryMode = "idempotent" | "write-once";
+
+/**
+ * Retry Google API calls with exponential backoff (1 try + up to 3 retries: ~0.5s, 1s, 2s + jitter).
+ * - "idempotent" (reads, overwriting a fixed range): retry on 429, 5xx and network errors.
+ * - "write-once" (append a row, delete a row, add a tab): retry ONLY on 429. Google rejects a
+ *   rate-limited request before applying it, so a retry is safe; after a 5xx/timeout the first
+ *   attempt may already have been applied, and repeating it could duplicate a note or delete the
+ *   row that shifted into place — so those errors are surfaced instead.
+ */
+async function withRetry<T>(label: string, fn: () => Promise<T>, mode: RetryMode = "idempotent", retries = 3): Promise<T> {
   let last: unknown;
-  for (let i = 0; i < attempts; i++) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       return await fn();
     } catch (e) {
       last = e;
-      const code = Number((e as { code?: number; status?: number })?.code ?? (e as { status?: number })?.status);
-      const transient = !code || code === 429 || code >= 500;
-      if (!transient || i === attempts - 1) break;
-      await sleep(600 * 2 ** i + Math.random() * 300);
+      const code = Number((e as { code?: number; status?: number })?.code ?? (e as { status?: number })?.status) || 0;
+      const retryable = mode === "idempotent" ? code === 0 || code === 429 || code >= 500 : code === 429;
+      if (!retryable || attempt === retries) break;
+      const wait = 500 * 2 ** attempt + Math.random() * 300;
+      console.warn(`[sheets] ${label}: HTTP ${code || "network"} — retry ${attempt + 1}/${retries} in ${Math.round(wait)}ms`);
+      await sleep(wait);
     }
   }
   console.error(`[sheets] ${label} failed`, last);
@@ -205,7 +216,7 @@ const headersOk = new Set<SheetKey>();
 export async function ensureHeaders(key: SheetKey): Promise<string[]> {
   if (headersOk.has(key) || !sheetsConfigured()) return [];
   const { name, headers } = SHEETS[key];
-  const res = await getClient().spreadsheets.values.get({ spreadsheetId: SHEET_ID(), range: `${name}!1:1` });
+  const res = await withRetry(`header row ${name}`, () => getClient().spreadsheets.values.get({ spreadsheetId: SHEET_ID(), range: `${name}!1:1` }));
   const current = ((res.data.values?.[0] ?? []) as string[]).map((h) => String(h).trim());
   const isPrefix = current.every((h, i) => h === headers[i]);
   const missing = headers.slice(current.length);
@@ -216,12 +227,12 @@ export async function ensureHeaders(key: SheetKey): Promise<string[]> {
   }
   if (missing.length) {
     const startCol = String.fromCharCode(65 + current.length);
-    await getClient().spreadsheets.values.update({
+    await withRetry(`write headers ${name}`, () => getClient().spreadsheets.values.update({
       spreadsheetId: SHEET_ID(),
       range: `${name}!${startCol}1`,
       valueInputOption: "RAW",
       requestBody: { values: [missing] },
-    });
+    }));
   }
   headersOk.add(key);
   return missing;
@@ -230,13 +241,13 @@ export async function ensureHeaders(key: SheetKey): Promise<string[]> {
 export async function appendRows(key: SheetKey, items: Record<string, unknown>[]) {
   if (!items.length) return;
   await ensureHeaders(key);
-  await getClient().spreadsheets.values.append({
+  await withRetry(`append ${SHEETS[key].name}`, () => getClient().spreadsheets.values.append({
     spreadsheetId: SHEET_ID(),
     range: `${SHEETS[key].name}!A1`,
     valueInputOption: "RAW",
     insertDataOption: "INSERT_ROWS",
     requestBody: { values: items.map((i) => toRow(key, i)) },
-  });
+  }), "write-once");
   bust(key);
 }
 
@@ -262,10 +273,10 @@ export async function backfillMissingIds(): Promise<number> {
         values: [[`${idCol.split("_")[0]}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`]],
       }));
     if (!data.length) continue;
-    await getClient().spreadsheets.values.batchUpdate({
+    await withRetry(`backfill ids ${SHEETS[key].name}`, () => getClient().spreadsheets.values.batchUpdate({
       spreadsheetId: SHEET_ID(),
       requestBody: { valueInputOption: "RAW", data },
-    });
+    }));
     total += data.length;
     bust(key);
   }
@@ -287,12 +298,12 @@ async function updateByIdUnsafe(key: SheetKey, id: string, patch: Record<string,
   const merged: Record<string, unknown> = { ...hit, ...patch };
   const n = SHEETS[key].headers.length;
   const lastCol = String.fromCharCode(64 + n);
-  await getClient().spreadsheets.values.update({
+  await withRetry(`update ${SHEETS[key].name} row ${hit._row}`, () => getClient().spreadsheets.values.update({
     spreadsheetId: SHEET_ID(),
     range: `${SHEETS[key].name}!A${hit._row}:${lastCol}${hit._row}`,
     valueInputOption: "RAW",
     requestBody: { values: [toRow(key, merged)] },
-  });
+  }));
   bust(key);
 }
 
@@ -344,14 +355,14 @@ async function deleteRowNumbers(key: SheetKey, rowNums: number[], expectedIds?: 
   if (expectedIds) await verifyRows(key, rowNums.map((row, i) => ({ row, id: expectedIds[i] })));
   const gid = await sheetGid(SHEETS[key].name);
   const sorted = [...rowNums].sort((a, b) => b - a); // delete bottom-up
-  await getClient().spreadsheets.batchUpdate({
+  await withRetry(`delete rows ${SHEETS[key].name}`, () => getClient().spreadsheets.batchUpdate({
     spreadsheetId: SHEET_ID(),
     requestBody: {
       requests: sorted.map((r) => ({
         deleteDimension: { range: { sheetId: gid, dimension: "ROWS", startIndex: r - 1, endIndex: r } },
       })),
     },
-  });
+  }), "write-once");
   bust(key);
 }
 
@@ -375,22 +386,146 @@ export async function deleteTranscriptsFor(videoId: string) {
 
 /** Create any missing tabs and write header rows. Used by /api/admin/setup and scripts/setup-sheets.mjs */
 export async function ensureTabs() {
-  const meta = await getClient().spreadsheets.get({ spreadsheetId: SHEET_ID(), fields: "sheets.properties" });
+  const meta = await withRetry("ensureTabs metadata", () => getClient().spreadsheets.get({ spreadsheetId: SHEET_ID(), fields: "sheets.properties" }));
   const existing = new Set(meta.data.sheets?.map((s) => s.properties?.title));
   const missing = Object.values(SHEETS).filter((s) => !existing.has(s.name));
   if (missing.length) {
-    await getClient().spreadsheets.batchUpdate({
+    await withRetry("add missing tabs", () => getClient().spreadsheets.batchUpdate({
       spreadsheetId: SHEET_ID(),
       requestBody: { requests: missing.map((s) => ({ addSheet: { properties: { title: s.name } } })) },
-    });
+    }), "write-once");
   }
-  await getClient().spreadsheets.values.batchUpdate({
+  await withRetry("write header rows", () => getClient().spreadsheets.values.batchUpdate({
     spreadsheetId: SHEET_ID(),
     requestBody: {
       valueInputOption: "RAW",
       data: Object.values(SHEETS).map((s) => ({ range: `${s.name}!A1`, values: [[...s.headers]] })),
     },
-  });
+  }));
   revalidateTag("all");
   return missing.map((m) => m.name);
+}
+
+/* ------------------------------------------------------------------------------------------ *
+ * Scheduled health check & self-clean (called by /api/cron/health-clean)
+ * ------------------------------------------------------------------------------------------ */
+
+export interface TabHealth {
+  tab: string;
+  ok: boolean;
+  dataRows: number;
+  header: "ok" | "repaired" | "mismatch";
+  missingHeaders?: string[];
+  blankRowsRemoved: number;
+  rowsWithoutId: number;
+  duplicateIds: string[];
+  note?: string;
+}
+export interface HealthReport {
+  ok: boolean;
+  checkedAt: string;
+  durationMs: number;
+  tabs: TabHealth[];
+  revalidated: boolean;
+  error?: string;
+}
+
+const MAX_BLANK_DELETES = 200; // per tab per run — a safety cap, never a whole-range clear
+
+const isBlankRow = (r: unknown[] | undefined) => !r || r.every((c) => String(c ?? "").trim() === "");
+
+/**
+ * 1. Connectivity: one batchGet of every tab (also proves the credentials + sheet id work).
+ * 2. Header integrity: exact → ok; prefix of expected → missing columns appended; otherwise
+ *    "mismatch" is reported and that tab is NOT modified (writes are positional).
+ * 3. Self-clean: delete only rows that are completely blank AND lie between the header and the
+ *    last non-blank row; each is re-verified blank right before a single bottom-up delete.
+ * 4. Revalidate every cache tag so the public site re-reads fresh data.
+ */
+export async function runHealthClean(): Promise<HealthReport> {
+  const started = Date.now();
+  const report: HealthReport = { ok: true, checkedAt: new Date().toISOString(), durationMs: 0, tabs: [], revalidated: false };
+  if (!sheetsConfigured()) {
+    return { ...report, ok: false, error: "Google Sheets is not configured", durationMs: Date.now() - started };
+  }
+  return serialized(async () => {
+    try {
+      const res = await withRetry("health batchGet", () =>
+        getClient().spreadsheets.values.batchGet({ spreadsheetId: SHEET_ID(), ranges: ALL_KEYS.map((k) => `${SHEETS[k].name}!A:Z`) }),
+      );
+      const ranges = res.data.valueRanges ?? [];
+
+      for (const [i, key] of ALL_KEYS.entries()) {
+        const { name, headers } = SHEETS[key];
+        const values = (ranges[i]?.values ?? []) as unknown[][];
+        const head = ((values[0] ?? []) as string[]).map((h) => String(h ?? "").trim());
+        const t: TabHealth = { tab: name, ok: true, dataRows: 0, header: "ok", blankRowsRemoved: 0, rowsWithoutId: 0, duplicateIds: [] };
+
+        // --- header integrity
+        const exact = headers.every((h, j) => head[j] === h) && head.filter(Boolean).length === headers.length;
+        const prefix = head.every((h, j) => h === headers[j]);
+        if (!exact) {
+          if (prefix) {
+            headersOk.delete(key);
+            t.missingHeaders = await ensureHeaders(key);
+            t.header = "repaired";
+          } else {
+            t.header = "mismatch";
+            t.ok = false;
+            t.note = `Header is ${JSON.stringify(head)}; expected ${JSON.stringify(headers)}. Tab left untouched.`;
+          }
+        }
+
+        // --- data stats
+        let lastNonBlank = 0; // 0-based index into values
+        values.forEach((r, idx) => { if (idx > 0 && !isBlankRow(r)) lastNonBlank = idx; });
+        const dataRows = values.slice(1, lastNonBlank + 1).filter((r) => !isBlankRow(r));
+        t.dataRows = dataRows.length;
+        const ids = dataRows.map((r) => String(r[0] ?? "").trim());
+        t.rowsWithoutId = ids.filter((x) => !x).length;
+        const seen = new Set<string>();
+        t.duplicateIds = [...new Set(ids.filter((x) => x && (seen.has(x) || !seen.add(x))))];
+        if (t.duplicateIds.length) t.ok = false;
+
+        // --- self-clean: blank rows inside the data block (sheet row = idx + 1)
+        if (t.header !== "mismatch") {
+          const blanks: number[] = [];
+          for (let idx = 1; idx < lastNonBlank; idx++) if (isBlankRow(values[idx])) blanks.push(idx + 1);
+          const targets = blanks.slice(0, MAX_BLANK_DELETES);
+          if (targets.length) {
+            // Re-verify every target is still blank immediately before deleting.
+            const lastCol = String.fromCharCode(64 + Math.max(headers.length, head.length, 1));
+            const check = await withRetry(`verify blanks ${name}`, () =>
+              getClient().spreadsheets.values.batchGet({ spreadsheetId: SHEET_ID(), ranges: targets.map((r) => `${name}!A${r}:${lastCol}${r}`) }),
+            );
+            const stillBlank = targets.filter((_, n) => isBlankRow(check.data.valueRanges?.[n]?.values?.[0] as unknown[] | undefined));
+            if (stillBlank.length) {
+              const gid = await sheetGid(name);
+              await withRetry(`trim blank rows ${name}`, () =>
+                getClient().spreadsheets.batchUpdate({
+                  spreadsheetId: SHEET_ID(),
+                  requestBody: {
+                    requests: [...stillBlank].sort((a, b) => b - a).map((r) => ({
+                      deleteDimension: { range: { sheetId: gid, dimension: "ROWS", startIndex: r - 1, endIndex: r } },
+                    })),
+                  },
+                }), "write-once");
+              t.blankRowsRemoved = stillBlank.length;
+            }
+            if (blanks.length > MAX_BLANK_DELETES) t.note = `${blanks.length - MAX_BLANK_DELETES} more blank rows left for the next run.`;
+          }
+        }
+        if (!t.ok) report.ok = false;
+        report.tabs.push(t);
+      }
+    } catch (e) {
+      report.ok = false;
+      report.error = e instanceof Error ? e.message : String(e);
+    }
+    // Revalidate even on partial failure: reads never cache errors, so this can only help.
+    revalidateEverything();
+    report.revalidated = true;
+    report.durationMs = Date.now() - started;
+    return report;
+  });
 }

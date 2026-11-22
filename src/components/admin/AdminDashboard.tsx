@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, Database, RefreshCw } from "lucide-react";
+import { LogOut, Database, RefreshCw, Stethoscope } from "lucide-react";
 import { useExitAdmin } from "@/lib/adminClient";
 import type { DarsVideo, Note, Podcast } from "@/lib/types";
 import { NOTE_SECTIONS } from "@/lib/sections";
@@ -47,6 +47,19 @@ export default function AdminDashboard({ data, configured }: { data: Data; confi
             router.refresh();
           }}>
             <RefreshCw size={14} /> Muat Semula Cache
+          </button>
+          <button className="btn-ghost border border-line" title="Semak sambungan & pengepala semua tab, buang baris kosong, muat semula cache" onClick={async () => {
+            setMsg("Menyemak kesihatan Google Sheet…");
+            const r = await runExclusive(() => fetch("/api/cron/health-clean", { cache: "no-store" }).then((x) => x.json()).catch(() => null));
+            if (!r) { setMsg("Semakan gagal — tiada sambungan"); return; }
+            const trimmed = (r.tabs ?? []).reduce((n: number, t: { blankRowsRemoved: number }) => n + t.blankRowsRemoved, 0);
+            const problems = (r.tabs ?? []).filter((t: { ok: boolean }) => !t.ok).map((t: { tab: string; note?: string; duplicateIds: string[] }) => `${t.tab}: ${t.note ?? `ID berganda ${t.duplicateIds.join(", ")}`}`);
+            setMsg(r.ok
+              ? `✓ Sihat — ${(r.tabs ?? []).map((t: { tab: string; dataRows: number }) => `${t.tab.split("_")[0]} ${t.dataRows}`).join(" · ")}${trimmed ? ` · ${trimmed} baris kosong dibuang` : ""} · cache dimuat semula`
+              : `⚠ ${r.error ?? problems.join(" | ")}`);
+            router.refresh();
+          }}>
+            <Stethoscope size={14} /> Semak Kesihatan
           </button>
           <button className="btn-ghost border border-line" onClick={async () => { const r = await setupTabs(); setMsg(r.ok ? `Tab disediakan: ${r.id}` : r.error); router.refresh(); }}>
             <Database size={14} /> Sediakan Tab Sheets
