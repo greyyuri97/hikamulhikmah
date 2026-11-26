@@ -21,6 +21,9 @@ export default function NotesAdmin({ sectionKey, title, notes }: { sectionKey: "
   const [msg, setMsg] = useState("");
   const router = useRouter();
   const adminBusy = useAdminBusy();
+  // Fawaid Zahabiyyah has no "Posting Asal" field; its source_url column stays in the Sheet untouched.
+  const withSource = sectionKey !== "fawaid";
+  const extras = () => (withSource ? { image_url: image, source_url: source } : { image_url: image });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [hidden, setHidden] = useState<Set<string>>(new Set()); // optimistic: removed before the refresh lands
   const [notice, setNotice] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
@@ -45,7 +48,7 @@ export default function NotesAdmin({ sectionKey, title, notes }: { sectionKey: "
 
   const submit = async () => {
     setBusy(true); setMsg("");
-    const r = await runExclusive(() => (editId ? updateNote(sectionKey, editId, date, content, { image_url: image, source_url: source }) : addNote(sectionKey, date, content, { image_url: image, source_url: source })));
+    const r = await runExclusive(() => (editId ? updateNote(sectionKey, editId, date, content, extras()) : addNote(sectionKey, date, content, extras())));
     setBusy(false);
     if (r.ok) { setMsg(editId ? "✓ Dikemas kini" : "✓ Diterbitkan"); setContent(""); setImage(""); setSource(""); setEditId(null); setDate(todayISO()); router.refresh(); }
     else setMsg(r.error);
@@ -57,9 +60,9 @@ export default function NotesAdmin({ sectionKey, title, notes }: { sectionKey: "
         <h2 className="font-serif font-semibold">{editId ? "Edit nota" : "Tambah nota baharu"} — {title}</h2>
         <DateField value={date} onChange={setDate} />
         <textarea className="input min-h-[260px] leading-7" dir="auto" value={content} onChange={(e) => setContent(e.target.value)} placeholder="Kandungan nota…" />
-        <NoteMediaFields image={image} setImage={setImage} source={source} setSource={setSource} />
+        <NoteMediaFields image={image} setImage={setImage} source={source} setSource={setSource} showSource={withSource} />
         <div className="flex items-center gap-2">
-          <button className="btn-accent" disabled={busy || !content.trim() || mediaInvalid(image, source)} onClick={submit}><Plus size={14} /> {busy ? "Menyimpan…" : editId ? "Kemas Kini" : "Terbitkan"}</button>
+          <button className="btn-accent" disabled={busy || !content.trim() || mediaInvalid(image, withSource ? source : "")} onClick={submit}><Plus size={14} /> {busy ? "Menyimpan…" : editId ? "Kemas Kini" : "Terbitkan"}</button>
           {editId && <button className="btn-ghost" onClick={() => { setEditId(null); setContent(""); setImage(""); setSource(""); setDate(todayISO()); }}>Batal</button>}
           {msg && <span className="text-sm text-accent">{msg}</span>}
         </div>

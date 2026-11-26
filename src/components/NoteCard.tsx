@@ -28,6 +28,7 @@ export default function NoteCard({
   const [content, setContent] = useState(note.content);
   const [image, setImage] = useState(note.image_url ?? "");
   const [source, setSource] = useState(note.source_url ?? "");
+  const withSource = sectionKey !== "fawaid"; // Fawaid: no "Posting Asal" field in the edit form
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const ref = useRef<HTMLDivElement>(null);
@@ -43,7 +44,7 @@ export default function NoteCard({
 
   const save = async () => {
     setBusy(true); setErr("");
-    const r = await updateNote(sectionKey, note.note_id, date, content, { image_url: image, source_url: source });
+    const r = await updateNote(sectionKey, note.note_id, date, content, withSource ? { image_url: image, source_url: source } : { image_url: image });
     setBusy(false);
     if (r.ok) { setEditing(false); router.refresh(); } else setErr(r.error);
   };
@@ -80,10 +81,10 @@ export default function NoteCard({
         <div className="space-y-2">
           <DateField value={date} onChange={setDate} />
           <textarea className="input min-h-[220px] leading-7" value={content} onChange={(e) => setContent(e.target.value)} />
-          <NoteMediaFields image={image} setImage={setImage} source={source} setSource={setSource} />
+          <NoteMediaFields image={image} setImage={setImage} source={source} setSource={setSource} showSource={withSource} />
           {err && <p className="text-sm text-red-600">{err}</p>}
           <div className="flex gap-2">
-            <button className="btn-accent" disabled={busy || mediaInvalid(image, source)} onClick={save}><Save size={14} /> {busy ? "Menyimpan…" : "Simpan"}</button>
+            <button className="btn-accent" disabled={busy || mediaInvalid(image, withSource ? source : "")} onClick={save}><Save size={14} /> {busy ? "Menyimpan…" : "Simpan"}</button>
             <button className="btn-ghost" onClick={() => { setEditing(false); setContent(note.content); setDate(isoDate || todayISO()); setImage(note.image_url ?? ""); setSource(note.source_url ?? ""); }}><X size={14} /> Batal</button>
           </div>
         </div>

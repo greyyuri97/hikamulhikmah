@@ -2,10 +2,13 @@
 import { CheckCircle2, ExternalLink, ImageIcon, Link2, XCircle } from "lucide-react";
 import { parseImageLink, parseSourceLink, sourceLabel } from "@/lib/mediaLinks";
 
-/** Optional image + original-post fields with live validation/preview (admin form & inline edit). */
+/**
+ * Optional image + original-post fields with live validation/preview (admin form & inline edit).
+ * `showSource={false}` hides the original-post field (used by Fawaid Zahabiyyah).
+ */
 export default function NoteMediaFields({
-  image, setImage, source, setSource,
-}: { image: string; setImage: (v: string) => void; source: string; setSource: (v: string) => void }) {
+  image, setImage, source, setSource, showSource = true,
+}: { image: string; setImage: (v: string) => void; source: string; setSource: (v: string) => void; showSource?: boolean }) {
   const img = parseImageLink(image);
   const imgBad = image.trim() !== "" && !img;
   const src = parseSourceLink(source);
@@ -30,6 +33,7 @@ export default function NoteMediaFields({
         {imgBad && <span className="mt-1 flex items-center gap-1 text-xs text-red-600"><XCircle size={13} /> Mesti pautan Google Drive atau URL https://</span>}
       </label>
 
+      {showSource && (
       <label className="block min-w-0">
         <span className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted"><Link2 size={13} /> Pautan Posting Asal (Facebook / Telegram / URL — Pilihan)</span>
         <input className={`input ${srcBad ? "!border-red-500" : ""}`} inputMode="url" placeholder="https://www.facebook.com/…  atau  https://t.me/…" value={source} onChange={(e) => setSource(e.target.value)} />
@@ -40,6 +44,7 @@ export default function NoteMediaFields({
         )}
         {srcBad && <span className="mt-1 flex items-center gap-1 text-xs text-red-600"><XCircle size={13} /> Mesti bermula dengan http:// atau https://</span>}
       </label>
+      )}
     </div>
   );
 }
